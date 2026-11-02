@@ -1,0 +1,1380 @@
+openapi: 3.0.3
+info:
+  title: Unira API
+  version: 0.2.0
+  description: 'PoC: Steward tạo nhiều phiên xử lý độc lập, upload 1..N file CSV/XLSX vào từng phiên; AI so khớp, HITL
+    duyệt, xuất CSV sạch riêng theo phiên. Không kết nối CRM/ERP.'
+servers:
+- url: http://localhost:8000
+  description: Môi trường PoC
+tags:
+- name: Auth
+- name: Sessions
+- name: Imports
+- name: Matching
+- name: Review
+- name: Master Data
+- name: Exports
+- name: Reporting
+security:
+- bearerAuth: []
+paths:
+  /api/v1/auth/login:
+    post:
+      summary: Đăng nhập
+      description: 'Vai trò: Công khai.'
+      tags:
+      - Auth
+      operationId: post_auth_login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      security: []
+  /api/v1/me:
+    get:
+      summary: Thông tin phiên người dùng
+      description: 'Vai trò: STEWARD/VIEWER.'
+      tags:
+      - Auth
+      operationId: get_me
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/sessions:
+    get:
+      summary: Danh sách phiên xử lý
+      description: STEWARD/VIEWER. Tìm kiếm và lọc các phiên được phép xem, không làm lẫn file và kết quả.
+      tags:
+      - Sessions
+      operationId: list_sessions
+      parameters:
+      - name: query
+        in: query
+        required: false
+        description: ''
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        description: ''
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: ''
+        schema:
+          type: integer
+      - name: cursor
+        in: query
+        required: false
+        description: ''
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Danh sách phiên
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProcessingSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    post:
+      summary: Tạo phiên xử lý
+      description: STEWARD. Tạo phiên DRAFT có ID riêng; mỗi phiên nhận một hoặc nhiều file trước khi chạy AI.
+      tags:
+      - Sessions
+      operationId: create_session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionCreateRequest'
+      responses:
+        '201':
+          description: Phiên mới được tạo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/sessions/{sessionId}:
+    get:
+      summary: Chi tiết một phiên
+      description: STEWARD/VIEWER. Trả tiến độ, số file, số hồ sơ, trạng thái xuất CSV thuộc một phiên.
+      tags:
+      - Sessions
+      operationId: get_session
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Chi tiết phiên
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/sessions/{sessionId}/imports:
+    post:
+      summary: Steward tải một file CSV/XLSX vào phiên
+      description: STEWARD. Upload mỗi request một file; có thể upload nhiều file trong một phiên DRAFT/READY. Mỗi file
+        thuộc đúng một phiên. Không kết nối CRM/ERP.
+      tags:
+      - Imports
+      operationId: post_imports
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                sourceLabel:
+                  type: string
+                  maxLength: 160
+                  description: Nhãn xuất xứ tùy chọn do Steward nhập (ví dụ CRM, Bán hàng); KHÔNG phải kết nối nguồn.
+      responses:
+        '202':
+          description: Yêu cầu được tiếp nhận
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Danh sách file thuộc một phiên
+      description: STEWARD. Trả toàn bộ file của đúng phiên, cùng số dòng hợp lệ/lỗi và trạng thái nhập.
+      tags:
+      - Imports
+      operationId: get_imports
+      responses:
+        '200':
+          description: Danh sách file đã tải
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ImportBatch'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/sessions/{sessionId}/imports/{batchId}:
+    get:
+      summary: Xem chi tiết một file thuộc phiên
+      description: STEWARD. Kiểm tra batchId thuộc sessionId trước khi trả dữ liệu.
+      tags:
+      - Imports
+      operationId: get_imports_batchId
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: batchId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/sessions/{sessionId}/match-jobs:
+    post:
+      summary: Bắt đầu AI Matching cho phiên
+      description: STEWARD. Khóa danh sách tất cả file trong phiên thành snapshot; chạy blocking, Splink và kiểm tra
+        nhóm bất đồng bộ. Không so sánh với phiên khác.
+      tags:
+      - Matching
+      operationId: post_match_jobs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartMatchRequest'
+      responses:
+        '202':
+          description: Yêu cầu được tiếp nhận
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Lịch sử chạy AI của phiên
+      description: STEWARD. Chỉ liệt kê jobs thuộc đúng phiên.
+      tags:
+      - Matching
+      operationId: get_match_jobs
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        required: false
+        description: ''
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: ''
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MatchJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/match-jobs/{jobId}:
+    get:
+      summary: Chi tiết job matching
+      description: STEWARD. Đọc kết quả một job; response có sessionId để FE gắn với đúng phiên.
+      tags:
+      - Matching
+      operationId: get_match_jobs_jobId
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        description: ''
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/match-groups:
+    get:
+      summary: Danh sách đề xuất trùng
+      description: STEWARD. Trả các nhóm nghi trùng của phiên được chỉ định; không trả nhóm từ phiên khác.
+      tags:
+      - Review
+      operationId: get_match_groups
+      parameters:
+      - name: sessionId
+        in: query
+        required: true
+        description: Lọc nghiêm ngặt theo phiên
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        description: ''
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: ''
+        schema:
+          type: integer
+      - name: cursor
+        in: query
+        required: false
+        description: ''
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MatchGroupSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/match-groups/{groupId}:
+    get:
+      summary: Chi tiết nhóm nghi trùng và bằng chứng
+      description: 'Vai trò: STEWARD.'
+      tags:
+      - Review
+      operationId: get_match_groups_groupId
+      parameters:
+      - name: groupId
+        in: path
+        required: true
+        description: ''
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchGroupDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/match-groups/{groupId}/decisions:
+    post:
+      summary: Duyệt hoặc từ chối hợp nhất
+      description: 'APPROVE tạo merge job có HITL, REJECT không tạo liên kết. 409 nếu group version đã thay đổi.
+
+
+        Vai trò: STEWARD.'
+      tags:
+      - Review
+      operationId: post_match_groups_groupId_decisions
+      parameters:
+      - name: groupId
+        in: path
+        required: true
+        description: ''
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewRequest'
+      responses:
+        '202':
+          description: Yêu cầu được tiếp nhận
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/master-records:
+    get:
+      summary: Tìm hồ sơ thống nhất
+      description: STEWARD/VIEWER. Mỗi Golden Record thuộc đúng một phiên. Không tìm kiếm lẫn các phiên.
+      tags:
+      - Master Data
+      operationId: get_master_records
+      parameters:
+      - name: sessionId
+        in: query
+        required: true
+        description: 'Bắt buộc: tra cứu theo phiên'
+        schema:
+          type: string
+      - name: query
+        in: query
+        required: false
+        description: ''
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: ''
+        schema:
+          type: integer
+      - name: cursor
+        in: query
+        required: false
+        description: ''
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MasterRecordSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/master-records/{masterId}:
+    get:
+      summary: Chi tiết hồ sơ thống nhất
+      description: 'Vai trò: STEWARD/VIEWER.'
+      tags:
+      - Master Data
+      operationId: get_master_records_masterId
+      parameters:
+      - name: masterId
+        in: path
+        required: true
+        description: ''
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterRecordDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/master-records/{masterId}/undo:
+    post:
+      summary: Tách các bản ghi đã gộp nhầm
+      description: STEWARD. Hủy liên kết sai, tái tạo hồ sơ từ bản ghi gốc; đánh dấu CSV chưa sẵn sàng và tạo lại. Không
+        so sánh phiên bản.
+      tags:
+      - Master Data
+      operationId: post_master_records_masterId_undo
+      parameters:
+      - name: masterId
+        in: path
+        required: true
+        description: ''
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UndoRequest'
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UndoResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/sessions/{sessionId}/exports:
+    get:
+      summary: Lấy CSV sạch của phiên
+      description: STEWARD. Mỗi phiên có tối đa một CSV hiện hành, không lưu hay so sánh các phiên bản xuất.
+      tags:
+      - Exports
+      operationId: list_session_exports
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Thông tin file CSV hiện hành của phiên (danh sách tối đa một mục).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CleanExport'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/sessions/{sessionId}/exports/{exportId}/download:
+    get:
+      summary: Tải CSV sạch của phiên
+      description: STEWARD. Chỉ cho tải bản READY hiện hành khi phiên COMPLETED; không tạo lại job. Kiểm tra exportId
+        thuộc sessionId.
+      tags:
+      - Exports
+      operationId: download_session_export
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: exportId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '302':
+          description: Chuyển hướng đến URL tải tạm có giới hạn thời gian
+          headers:
+            Location:
+              description: Signed download URL
+              schema:
+                type: string
+                format: uri
+        '404':
+          description: Không thấy file thuộc phiên
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/dashboard:
+    get:
+      summary: Tổng quan hệ thống
+      description: STEWARD/VIEWER. Trả số phiên và thống kê tổng thể hoặc một phiên tùy sessionId.
+      tags:
+      - Reporting
+      operationId: get_dashboard
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - name: sessionId
+        in: query
+        required: false
+        description: 'Để trống: chỉ số tổng thể; cung cấp: chỉ số của phiên'
+        schema:
+          type: string
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: Dữ liệu đầu vào không hợp lệ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Chưa đăng nhập hoặc token hết hạn
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Không đủ quyền
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Xung đột trạng thái hoặc version
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+      required:
+      - code
+      - message
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+      - email
+      - password
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+      - accessToken
+      - tokenType
+      - user
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum:
+          - STEWARD
+          - VIEWER
+      required:
+      - id
+      - email
+      - role
+    ImportBatch:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        status:
+          type: string
+          enum:
+          - QUEUED
+          - RUNNING
+          - COMPLETED
+          - FAILED
+        rowCount:
+          type: integer
+          format: int64
+          minimum: 0
+        validCount:
+          type: integer
+          format: int64
+          minimum: 0
+        errorCount:
+          type: integer
+          format: int64
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+        sourceLabel:
+          type: string
+          description: Nhãn xuất xứ của file nếu Steward nhập.
+      required:
+      - id
+      - sessionId
+      - status
+    StartMatchRequest:
+      type: object
+      properties: {}
+      description: Matching tất cả file đã xác nhận thuộc sessionId của URL. Chưa hỗ trợ chế độ INCREMENTAL xuyên phiên.
+    JobAccepted:
+      type: object
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        message:
+          type: string
+      required:
+      - jobId
+      - status
+    MatchJob:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - QUEUED
+          - RUNNING
+          - WAITING_REVIEW
+          - MERGING
+          - EXPORTING
+          - COMPLETED
+          - FAILED
+        processedRecords:
+          type: integer
+          format: int64
+          minimum: 0
+        totalRecords:
+          type: integer
+          format: int64
+          minimum: 0
+        candidateCount:
+          type: integer
+          format: int64
+          minimum: 0
+        groupCount:
+          type: integer
+          format: int64
+          minimum: 0
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        errorMessage:
+          type: string
+        cleanExportId:
+          type: string
+          format: uuid
+          description: Có khi CSV cuối phiên đã sẵn sàng
+      required:
+      - id
+      - sessionId
+      - status
+    SourceRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        normalizedData:
+          type: object
+          additionalProperties: true
+        importBatchId:
+          type: string
+          format: uuid
+        rowNumber:
+          type: integer
+          format: int64
+        externalRecordId:
+          type: string
+          description: Mã tùy chọn có trong file; có thể thiếu hoặc khác nhau giữa file.
+      required:
+      - id
+      - importBatchId
+      - rowNumber
+    MatchEvidence:
+      type: object
+      properties:
+        field:
+          type: string
+        recordAValue:
+          type: string
+        recordBValue:
+          type: string
+        comparison:
+          type: string
+        weight:
+          type: number
+        conflict:
+          type: boolean
+      required:
+      - field
+      - comparison
+    MatchGroupSummary:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+        jobId:
+          type: string
+          format: uuid
+        memberCount:
+          type: integer
+          format: int64
+          minimum: 0
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        status:
+          type: string
+          enum:
+          - PENDING
+          - APPROVED
+          - REJECTED
+          - NEEDS_REVIEW
+      required:
+      - id
+      - sessionId
+      - jobId
+      - status
+    MatchedPair:
+      type: object
+      properties:
+        recordAId:
+          type: string
+          format: uuid
+        recordBId:
+          type: string
+          format: uuid
+        probability:
+          type: number
+          minimum: 0
+          maximum: 1
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchEvidence'
+      required:
+      - recordAId
+      - recordBId
+      - probability
+    MatchGroupDetail:
+      type: object
+      properties:
+        group:
+          $ref: '#/components/schemas/MatchGroupSummary'
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceRecord'
+        pairs:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchedPair'
+        warnings:
+          type: array
+          items:
+            type: string
+      required:
+      - group
+      - members
+      - pairs
+    FieldChoice:
+      type: object
+      properties:
+        value:
+          type: string
+        recordId:
+          type: string
+          format: uuid
+          description: UUID nội bộ của dòng dữ liệu trong file được upload.
+      required:
+      - value
+      - recordId
+    ReviewRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum:
+          - APPROVE
+          - REJECT
+        recordIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 2
+        chosenFields:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/FieldChoice'
+        reason:
+          type: string
+      required:
+      - action
+    ReviewResult:
+      type: object
+      properties:
+        decisionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - APPROVED
+          - REJECTED
+        mergeJobId:
+          type: string
+          format: uuid
+        mergeStatus:
+          type: string
+          enum:
+          - NONE
+          - QUEUED
+          - COMPLETED
+          - FAILED
+      required:
+      - decisionId
+      - status
+      - mergeStatus
+    MasterRecordSummary:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+        masterCode:
+          type: string
+        displayName:
+          type: string
+        linkedRecordCount:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - id
+      - sessionId
+      - masterCode
+    LinkedSource:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        recordId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        importBatchId:
+          type: string
+          format: uuid
+        rowNumber:
+          type: integer
+          format: int64
+        externalRecordId:
+          type: string
+          description: Mã tùy chọn có trong file; có thể thiếu hoặc khác nhau giữa file.
+      required:
+      - recordId
+      - status
+      - importBatchId
+      - rowNumber
+    MasterRecordDetail:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+        masterCode:
+          type: string
+        canonicalData:
+          type: object
+          additionalProperties: true
+        fieldProvenance:
+          type: object
+          additionalProperties:
+            type: string
+            format: uuid
+        linkedSources:
+          type: array
+          items:
+            $ref: '#/components/schemas/LinkedSource'
+          description: Các dòng dữ liệu gốc từ những file Steward đã tải lên.
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - sessionId
+      - masterCode
+      - canonicalData
+      - linkedSources
+    UndoRequest:
+      type: object
+      properties:
+        recordIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+        reason:
+          type: string
+          minLength: 1
+      required:
+      - recordIds
+      - reason
+      description: Tách các bản ghi gộp nhầm. Dữ liệu gốc và liên kết hiện hành được dùng để tính lại hồ sơ, không phục
+        hồi snapshot phiên bản.
+    UndoResult:
+      type: object
+      properties:
+        masterId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        sessionStatus:
+          type: string
+      required:
+      - masterId
+      - status
+    Dashboard:
+      type: object
+      properties:
+        totalSessions:
+          type: integer
+          minimum: 0
+        runningSessionCount:
+          type: integer
+          minimum: 0
+        waitingReviewSessionCount:
+          type: integer
+          minimum: 0
+        completedSessionCount:
+          type: integer
+          minimum: 0
+        failedSessionCount:
+          type: integer
+          minimum: 0
+        totalSourceRecords:
+          type: integer
+          format: int64
+          minimum: 0
+        masterRecordCount:
+          type: integer
+          format: int64
+          minimum: 0
+        pendingGroupCount:
+          type: integer
+          format: int64
+          minimum: 0
+        approvedGroupCount:
+          type: integer
+          format: int64
+          minimum: 0
+        rejectedGroupCount:
+          type: integer
+          format: int64
+          minimum: 0
+        runningJobCount:
+          type: integer
+          format: int64
+          minimum: 0
+        failedJobCount:
+          type: integer
+          format: int64
+          minimum: 0
+        readyExportCount:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - totalSessions
+      - totalSourceRecords
+      - masterRecordCount
+      - pendingGroupCount
+    CleanExport:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+        jobId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - GENERATING
+          - READY
+          - FAILED
+        filename:
+          type: string
+        snapshotAt:
+          type: string
+          format: date-time
+        rowCount:
+          type: integer
+          format: int64
+          minimum: 0
+        excludedCount:
+          type: integer
+          format: int64
+          minimum: 0
+        sha256:
+          type: string
+          minLength: 64
+          maxLength: 64
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - sessionId
+      - status
+      - filename
+      - snapshotAt
+      - createdAt
+    SessionCreateRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+    ProcessingSession:
+      type: object
+      required:
+      - id
+      - name
+      - status
+      - createdAt
+      - fileCount
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - READY
+          - QUEUED
+          - RUNNING
+          - WAITING_REVIEW
+          - MERGING
+          - EXPORTING
+          - COMPLETED
+          - FAILED
+          - REVALIDATING
+        fileCount:
+          type: integer
+          minimum: 0
+        totalRecords:
+          type: integer
+          format: int64
+          minimum: 0
+        validRecords:
+          type: integer
+          format: int64
+          minimum: 0
+        errorRecords:
+          type: integer
+          format: int64
+          minimum: 0
+        pendingGroupCount:
+          type: integer
+          minimum: 0
+        masterRecordCount:
+          type: integer
+          minimum: 0
+        progressPercent:
+          type: number
+          minimum: 0
+          maximum: 100
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        currentExportId:
+          type: string
+          format: uuid
