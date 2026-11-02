@@ -64,6 +64,9 @@ Table match_jobs {
   id uuid [pk]
   session_id uuid [not null, ref: > processing_sessions.id]
   status varchar(30) [not null, note: 'QUEUED RUNNING WAITING_REVIEW MERGING EXPORTING COMPLETED FAILED']
+  model_version varchar(100) [note: 'Versioned Splink model/configuration used for this run']
+  normalization_version varchar(100) [note: 'Version of field normalization rules']
+  matching_config jsonb [note: 'Blocking rules and review/grouping thresholds used for this run']
   total_records bigint
   candidate_count bigint
   started_at timestamptz

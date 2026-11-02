@@ -1,0 +1,173 @@
+// Unira – Proposed relational schema (PostgreSQL)
+// File/source data and large candidate sets may be stored in Parquet/object storage.
+// Keep original source records; master links are reversible.
+
+Table users {
+  id uuid [pk]
+  email varchar(255) [not null, unique]
+  password_hash varchar(255) [not null]
+  display_name varchar(200) [not null]
+  role varchar(20) [not null, note: 'STEWARD or VIEWER']
+  status varchar(20) [not null, default: 'ACTIVE']
+  created_at timestamptz [not null]
+}
+
+Table processing_sessions {
+  id uuid [pk]
+  name varchar(200) [not null]
+  description text
+  created_by uuid [not null, ref: > users.id]
+  status varchar(30) [not null, note: 'DRAFT READY QUEUED RUNNING WAITING_REVIEW MERGING EXPORTING COMPLETED FAILED REVALIDATING']
+  input_snapshot jsonb [note: 'List of input file IDs fixed when the session starts']
+  created_at timestamptz [not null]
+  started_at timestamptz
+  completed_at timestamptz
+  indexes {
+    created_by
+    status
+  }
+}
+
+Table import_batches {
+  id uuid [pk]
+  session_id uuid [not null, ref: > processing_sessions.id]
+  source_label varchar(160) [note: 'Optional file origin label entered by Steward: CRM / Sales / CSKH']
+  filename varchar(255)
+  file_uri text
+  status varchar(30) [not null]
+  row_count bigint [default: 0]
+  valid_count bigint [default: 0]
+  error_count bigint [default: 0]
+  created_by uuid [ref: > users.id]
+  started_at timestamptz
+  completed_at timestamptz
+  indexes {
+    session_id
+  }
+}
+
+Table source_records {
+  id uuid [pk]
+  import_batch_id uuid [not null, ref: > import_batches.id]
+  row_number bigint [not null]
+  external_record_id varchar(255) [note: 'Optional identifier found in input file, not universally unique']
+  raw_data jsonb [not null]
+  normalized_data jsonb [not null]
+  updated_at timestamptz [not null]
+  indexes {
+    (import_batch_id, row_number) [unique]
+    import_batch_id
+  }
+}
+
+Table match_jobs {
+  id uuid [pk]
+  session_id uuid [not null, ref: > processing_sessions.id]
+  status varchar(30) [not null, note: 'QUEUED RUNNING WAITING_REVIEW MERGING EXPORTING COMPLETED FAILED']
+  model_version varchar(100) [note: 'Versioned Splink model/configuration used for this run']
+  normalization_version varchar(100) [note: 'Version of field normalization rules']
+  matching_config jsonb [note: 'Blocking rules and review/grouping thresholds used for this run']
+  total_records bigint
+  candidate_count bigint
+  started_at timestamptz
+  completed_at timestamptz
+  error_message text
+  indexes {
+    (session_id, started_at)
+  }
+}
+
+Table match_candidates {
+  id uuid [pk]
+  job_id uuid [not null, ref: > match_jobs.id]
+  record_a_id uuid [not null, ref: > source_records.id]
+  record_b_id uuid [not null, ref: > source_records.id]
+  match_probability double
+  evidence jsonb
+  indexes {
+    (job_id, record_a_id, record_b_id) [unique]
+  }
+}
+
+Table match_groups {
+  id uuid [pk]
+  job_id uuid [not null, ref: > match_jobs.id]
+  status varchar(30) [not null, note: 'PENDING APPROVED REJECTED NEEDS_REVIEW']
+  confidence double
+  evidence_summary jsonb
+  created_at timestamptz [not null]
+}
+
+Table group_members {
+  group_id uuid [not null, ref: > match_groups.id]
+  record_id uuid [not null, ref: > source_records.id]
+  membership_score double
+  indexes {
+    (group_id, record_id) [pk]
+  }
+}
+
+Table review_decisions {
+  id uuid [pk]
+  group_id uuid [not null, ref: > match_groups.id]
+  reviewer_id uuid [not null, ref: > users.id]
+  action varchar(30) [not null, note: 'APPROVE REJECT']
+  reason text
+  chosen_fields jsonb
+  merge_status varchar(30) [not null, note: 'NONE QUEUED COMPLETED FAILED']
+  reviewed_at timestamptz [not null]
+}
+
+Table master_records {
+  id uuid [pk]
+  session_id uuid [not null, ref: > processing_sessions.id]
+  master_code varchar(100) [not null, unique]
+  canonical_data jsonb [not null]
+  status varchar(20) [not null, default: 'ACTIVE']
+  updated_at timestamptz [not null]
+  indexes {
+    session_id
+  }
+}
+
+Table master_links {
+  id uuid [pk]
+  master_id uuid [not null, ref: > master_records.id]
+  record_id uuid [not null, ref: > source_records.id]
+  review_decision_id uuid [ref: > review_decisions.id]
+  status varchar(20) [not null, note: 'ACTIVE or REVOKED']
+  linked_at timestamptz [not null]
+  revoked_at timestamptz
+  indexes {
+    (master_id, record_id)
+    record_id
+  }
+}
+
+// Migration additionally enforces a partial unique index on master_links(record_id)
+// WHERE status = 'ACTIVE'. DBML cannot fully express this conditional constraint.
+// Output created automatically for each completed processing session.
+// A session has one current CSV; after correcting a merge, regenerate it.
+// Standalone valid customer records also receive a master record before export.
+Table clean_exports {
+  id uuid [pk]
+  session_id uuid [not null, ref: > processing_sessions.id]
+  job_id uuid [ref: > match_jobs.id]
+  status varchar(20) [not null, note: 'GENERATING READY FAILED']
+  object_uri text [note: 'Private object storage path; never return raw URI to user']
+  filename varchar(255) [not null]
+  snapshot_at timestamptz [not null]
+  row_count bigint [default: 0]
+  excluded_count bigint [default: 0]
+  content_sha256 varchar(64)
+  created_at timestamptz [not null]
+  completed_at timestamptz
+  indexes {
+    session_id [unique]
+  }
+}
+
+// Application invariants: import_batches/session_id == match_jobs/session_id for each job input;
+// every linked source record belongs to the same processing_sessions.id as its master_record;
+// match_groups derive only from source files in the job's session;
+// one clean_export per session (UNIQUE session_id); never expose a stale file after correction.

@@ -1,8 +1,10 @@
 # Unira
 
-Unira là đề xuất xây dựng hệ thống phát hiện và hợp nhất hồ sơ khách hàng trùng lặp ở quy mô lớn.
+[English version](./README.en.md)
 
-Một khách hàng có thể xuất hiện nhiều lần trong dữ liệu, với tên, số điện thoại hoặc địa chỉ được ghi khác nhau. Unira nhận file CSV/XLSX do Steward tải lên, kiểm tra dữ liệu và tìm những hồ sơ có khả năng trùng nhau. Steward xem bằng chứng và quyết định có gộp hay không; sau khi được duyệt, hệ thống mới tạo hoặc cập nhật hồ sơ thống nhất (Golden Record). Mỗi phiên có thể chứa nhiều file và có kết quả xử lý riêng. Khi phiên hoàn tất, Steward tải CSV dữ liệu sạch của phiên đó. Bản ghi gốc vẫn được giữ để đối chiếu hoặc tách hồ sơ nếu gộp nhầm.
+Unira là hệ thống phát hiện và hợp nhất hồ sơ khách hàng trùng lặp.
+
+Một khách hàng có thể xuất hiện nhiều lần trong dữ liệu, với tên, số điện thoại hoặc địa chỉ được ghi khác nhau. Unira nhận file CSV do Steward tải lên, kiểm tra dữ liệu và tìm những hồ sơ có khả năng trùng nhau. Steward xem bằng chứng và quyết định có gộp hay không; sau khi được duyệt, hệ thống mới tạo hoặc cập nhật hồ sơ thống nhất (Golden Record). Mỗi phiên có thể chứa nhiều file và có kết quả xử lý riêng. Khi phiên hoàn tất, Steward tải CSV dữ liệu sạch của phiên đó. Bản ghi gốc vẫn được giữ để đối chiếu hoặc tách hồ sơ nếu gộp nhầm.
 
 **Luồng xử lý:** `Tạo phiên → Tải file lên → Kiểm tra và chuẩn hóa → So khớp → Steward duyệt → Hợp nhất → Kiểm tra kết quả → Xuất CSV`.
 
@@ -87,9 +89,9 @@ US14 về đăng nhập và phân quyền là điều kiện chung của các ca
 
 - **Tác nhân:** Steward.
 - **Tiền điều kiện:** Steward có quyền với phiên; phiên còn `DRAFT` hoặc `READY` và chưa chốt file đầu vào.
-- **Luồng chính:** (1) Steward mở phiên và chọn một hoặc nhiều file CSV/XLSX → (2) Thêm nhãn xuất xứ nếu cần → (3) Hệ thống lưu từng file dưới đúng `session_id`, kiểm tra cột và dòng → (4) Hiển thị số dòng hợp lệ, số dòng lỗi và chi tiết lỗi theo từng file.
+- **Luồng chính:** (1) Steward mở phiên và chọn một hoặc nhiều file CSV → (2) Thêm nhãn xuất xứ nếu cần → (3) Hệ thống lưu từng file dưới đúng `session_id`, kiểm tra định dạng CSV, cột và dòng → (4) Hiển thị số dòng hợp lệ, số dòng lỗi và chi tiết lỗi theo từng file.
 - **Luồng thay thế:** Trước khi chạy so khớp, Steward có thể thêm file hoặc loại file đã chọn rồi kiểm tra lại.
-- **Ngoại lệ:** File sai định dạng hoặc vượt hạn mức thì báo lỗi cho file đó; phiên đã bắt đầu chạy thì không nhận thêm file và không thay đổi danh sách đã chốt.
+- **Ngoại lệ:** File không phải CSV hoặc vượt hạn mức thì báo lỗi cho file đó; phiên đã bắt đầu chạy thì không nhận thêm file và không thay đổi danh sách đã chốt.
 - **Hậu điều kiện:** Các file được nhận thuộc đúng một phiên. Bản ghi gốc và kết quả kiểm tra được giữ để xử lý tiếp; hệ thống chưa gộp hồ sơ.
 
 **UC05 – Duyệt hoặc từ chối gộp**
@@ -114,7 +116,7 @@ US14 về đăng nhập và phân quyền là điều kiện chung của các ca
 
 | Vai trò | Được làm | Không được làm |
 | --- | --- | --- |
-| **Data Steward** (người quản lý dữ liệu) | Tạo phiên, tải file CSV/XLSX, chạy so khớp, duyệt kết quả, quản lý hồ sơ, tách hồ sơ gộp sai và tải CSV sạch. | Không sửa hoặc xóa file gốc trên màn hình hợp nhất. |
+| **Data Steward** (người quản lý dữ liệu) | Tạo phiên, tải file CSV, chạy so khớp, duyệt kết quả, quản lý hồ sơ, tách hồ sơ gộp sai và tải CSV sạch. | Không sửa hoặc xóa file gốc trên màn hình hợp nhất. |
 | **Viewer** (người xem) | Xem các phiên được cấp quyền, kết quả xử lý và Golden Record trong từng phiên. | Không tải file lên, chạy job, duyệt, hợp nhất hoặc tách hồ sơ. |
 
 Sơ đồ chỉ có hai vai trò: Steward và Viewer. Steward tải file lên; CRM/ERP, nếu được ghi trên file, chỉ là thông tin xuất xứ. Worker, Splink và LangGraph là các thành phần bên trong hệ thống.
@@ -178,7 +180,7 @@ Mỗi Section là một khối nội dung của trang. Nút, biểu mẫu và ph
 | Section | Mô tả nội dung và chức năng |
 | --- | --- |
 | **Thông tin phiên** | Ô **Tên phiên** (bắt buộc), **Mô tả** (tùy chọn), người tạo; khi tạo sinh mã phiên và trạng thái `DRAFT`. |
-| **Tải nhiều file** | Khu chọn/kéo-thả **nhiều CSV/XLSX**, bảng tên file, dung lượng, định dạng, nhãn xuất xứ do Steward nhập, nút loại bỏ **trước khi chạy**. |
+| **Tải nhiều file** | Khu chọn/kéo-thả **nhiều file CSV**, bảng tên file, dung lượng, nhãn xuất xứ do Steward nhập, nút loại bỏ **trước khi chạy**. File không phải CSV được báo lỗi ngay khi chọn. |
 | **Kiểm tra dữ liệu** | Xem trước vài dòng và cột; số dòng hợp lệ/lỗi của **mỗi file**, thông báo lỗi cột bắt buộc/định dạng; link xem chi tiết lỗi. |
 | **Hành động** | **Lưu phiên**, **Bắt đầu xử lý AI** (chỉ mở khi có file hợp lệ), **Hủy/quay lại**. Sau khi bắt đầu khóa danh sách file và chuyển P05. |
 
@@ -255,7 +257,7 @@ Viewer chỉ được xem nội dung thuộc phiên mình có quyền truy cập
 
 ```text
 P01 Đăng nhập → P02 Tổng quan → P03 Danh sách phiên
-  → P04 Tạo phiên, tải một hoặc nhiều file CSV/XLSX, xem lỗi từng file
+  → P04 Tạo phiên, tải một hoặc nhiều file CSV, xem lỗi từng file
   → Bắt đầu so khớp → P05 Theo dõi tiến độ phiên
   → P06 Xem nhóm nghi trùng → P07 Xác minh và duyệt/từ chối
   → P05 Xem kết quả, tải CSV hiện hành khi phiên COMPLETED và file READY
@@ -283,45 +285,43 @@ Mỗi luồng tra cứu phải giữ đúng `session_id`. Chuyển từ phiên A
 
 ### 2.3. Thiết kế giao diện (UI/UX)
 
-Đặt ảnh thiết kế vào [docs/ui-ux](./docs/ui-ux/README.md) và chèn dưới đúng màn hình bên dưới. Mỗi ảnh nên cho thấy bố cục chính; nếu có nhiều trạng thái của cùng màn hình, thêm ảnh ngay dưới ảnh đầu tiên và ghi rõ trạng thái.
+Hình ảnh minh họa giao diện của 9 màn hình P01–P09, theo kiến trúc thông tin ở mục 2.1. Các ảnh được lưu trong [`docs/ui-ux`](./docs/ui-ux/README.md).
 
 #### P01 – Đăng nhập
 
-*Chưa có ảnh thiết kế P01. Chèn ảnh tại đây khi có bản thiết kế.*
+![P01 – Đăng nhập](./docs/ui-ux/p01-dang-nhap.png)
 
 #### P02 – Tổng quan
 
-*Chưa có ảnh thiết kế P02. Chèn ảnh tại đây khi có bản thiết kế.*
+![P02 – Tổng quan](./docs/ui-ux/p02-tong-quan.png)
 
 #### P03 – Danh sách phiên
 
-*Chưa có ảnh thiết kế P03. Chèn ảnh tại đây khi có bản thiết kế.*
+![P03 – Danh sách phiên](./docs/ui-ux/p03-danh-sach-phien.png)
 
 #### P04 – Tạo phiên / Nhập file
 
-*Chưa có ảnh thiết kế P04. Chèn ảnh tại đây khi có bản thiết kế.*
+![P04 – Tạo phiên / Nhập file CSV](./docs/ui-ux/p04-tao-phien-nhap-file-csv.png)
 
 #### P05 – Chi tiết phiên
 
-*Chưa có ảnh thiết kế P05. Chèn ảnh tại đây khi có bản thiết kế.*
+![P05 – Chi tiết phiên với file CSV](./docs/ui-ux/p05-chi-tiet-phien-csv.png)
 
 #### P06 – Kết quả AI của phiên
 
-*Chưa có ảnh thiết kế P06. Chèn ảnh tại đây khi có bản thiết kế.*
+![P06 – Kết quả AI của phiên](./docs/ui-ux/p06-ket-qua-ai.png)
 
 #### P07 – Xác minh nhóm nghi trùng
 
-*Chưa có ảnh thiết kế P07. Chèn ảnh tại đây khi có bản thiết kế.*
+![P07 – Xác minh nhóm nghi trùng](./docs/ui-ux/p07-xac-minh-nhom.png)
 
 #### P08 – Hồ sơ khách hàng
 
-*Chưa có ảnh thiết kế P08. Chèn ảnh tại đây khi có bản thiết kế.*
+![P08 – Hồ sơ khách hàng](./docs/ui-ux/p08-ho-so-khach-hang.png)
 
 #### P09 – Thống kê
 
-*Chưa có ảnh thiết kế P09. Chèn ảnh tại đây khi có bản thiết kế.*
-
-Khi có ảnh, thay dòng “Chưa có ảnh thiết kế” bằng cú pháp như: `![P01 – Đăng nhập](./docs/ui-ux/p01-dang-nhap.png)`.
+![P09 – Thống kê](./docs/ui-ux/p09-thong-ke.png)
 
 ### 2.4. Trạng thái giao diện và nguyên tắc UI/UX
 
@@ -400,6 +400,8 @@ So khớp chỉ tạo đề xuất. Khi Steward duyệt, `MergeService` kiểm t
 
 Xem [quy trình xử lý chín bước](./docs/architecture/processing-workflow.md), từ tạo phiên đến xuất lại CSV sau khi tách hồ sơ.
 
+Chi tiết cách thực hiện phần so khớp AI — từ chuẩn hóa, blocking, chấm điểm Splink đến xác minh nhóm và kiểm thử — nằm trong [thiết kế luồng so khớp AI](./docs/architecture/ai-matching-workflow.md).
+
 ## 4. Cơ sở dữ liệu và hợp đồng API
 
 Sơ đồ dữ liệu và đặc tả API dưới đây là thiết kế dự kiến; repository hiện chưa có migration hay backend chạy thực tế.
@@ -458,7 +460,7 @@ Unira/
     ├── mindmap.png
     ├── schema.dbml
     ├── requirements/README.md
-    ├── architecture/processing-workflow.md
+    ├── architecture/processing-workflow.md, ai-matching-workflow.md
     ├── uml/usecase-overview.puml, .svg, .png
     ├── erd/README.md, build_erd.py, erd-tong-the.*
     └── api/openapi.yaml
@@ -626,7 +628,7 @@ sequenceDiagram
     API->>DB: INSERT processing_sessions (DRAFT)
     API-->>UI: 201 + sessionId
     loop Cho từng file của phiên
-        S->>UI: Chọn file CSV/XLSX và nhãn nguồn
+        S->>UI: Chọn file CSV và nhãn nguồn
         UI->>API: POST /sessions/{sessionId}/imports
         API->>DB: Lưu import_batch thuộc sessionId
         API-->>UI: 202, trạng thái kiểm tra file

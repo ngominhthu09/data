@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Unira API
   version: 0.2.0
-  description: 'PoC: Steward tạo nhiều phiên xử lý độc lập, upload 1..N file CSV/XLSX vào từng phiên; AI so khớp, HITL
+  description: 'PoC: Steward tạo nhiều phiên xử lý độc lập, upload 1..N file CSV vào từng phiên; AI so khớp, HITL
     duyệt, xuất CSV sạch riêng theo phiên. Không kết nối CRM/ERP.'
 servers:
 - url: http://localhost:8000
@@ -177,9 +177,9 @@ paths:
           $ref: '#/components/responses/Conflict'
   /api/v1/sessions/{sessionId}/imports:
     post:
-      summary: Steward tải một file CSV/XLSX vào phiên
-      description: STEWARD. Upload mỗi request một file; có thể upload nhiều file trong một phiên DRAFT/READY. Mỗi file
-        thuộc đúng một phiên. Không kết nối CRM/ERP.
+      summary: Steward tải một file CSV vào phiên
+      description: STEWARD. Mỗi request tải một file CSV; có thể tải nhiều file trong một phiên DRAFT/READY. Từ chối file
+        không phải CSV với mã 400. Mỗi file thuộc đúng một phiên. Không kết nối CRM/ERP.
       tags:
       - Imports
       operationId: post_imports
@@ -195,10 +195,14 @@ paths:
                 file:
                   type: string
                   format: binary
+                  description: File CSV đầu vào; các định dạng khác không được chấp nhận.
                 sourceLabel:
                   type: string
                   maxLength: 160
                   description: Nhãn xuất xứ tùy chọn do Steward nhập (ví dụ CRM, Bán hàng); KHÔNG phải kết nối nguồn.
+            encoding:
+              file:
+                contentType: text/csv
       responses:
         '202':
           description: Yêu cầu được tiếp nhận

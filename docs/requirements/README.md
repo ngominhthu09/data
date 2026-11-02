@@ -1,5 +1,7 @@
 # 1. Yêu cầu sản phẩm – INVEST, use case và tiêu chí chấp nhận
 
+[English version](./README.en.md)
+
 ## 1.1. Sơ đồ tư duy sản phẩm
 
 ![Sơ đồ tư duy sản phẩm Unira](../mindmap.png)
@@ -9,7 +11,7 @@
 
 | Vai trò | Được làm | Không được làm |
 | --- | --- | --- |
-| **Data Steward** (người quản lý dữ liệu) | Tạo và xem các phiên xử lý; tải CSV/XLSX vào từng phiên; chạy đối chiếu; duyệt hoặc từ chối đề xuất; quản lý, tách hồ sơ và tải CSV sạch. | Không sửa hoặc xóa file gốc trên màn hình hợp nhất. |
+| **Data Steward** (người quản lý dữ liệu) | Tạo và xem các phiên xử lý; tải CSV vào từng phiên; chạy đối chiếu; duyệt hoặc từ chối đề xuất; quản lý, tách hồ sơ và tải CSV sạch. | Không sửa hoặc xóa file gốc trên màn hình hợp nhất. |
 | **Viewer** (người xem) | Xem các phiên được cấp quyền, kết quả tổng hợp và Golden Record của từng phiên. | Không tải file lên, chạy job, duyệt, hợp nhất hoặc tách hồ sơ. |
 
 Sơ đồ Use Case có hai vai trò: Steward và Viewer. Steward là người tải file lên. Nếu file được xuất từ CRM hoặc ERP, tên hệ thống đó chỉ là nhãn xuất xứ để truy vết; Unira không kết nối trực tiếp với chúng. Worker, Splink và LangGraph là thành phần nội bộ.
@@ -23,7 +25,7 @@ Mỗi user story cần tương đối độc lập, có thể điều chỉnh c�
 | ID | Vai trò | User story |
 | --- | --- | --- |
 | US01 | Steward | Tôi muốn tạo, đặt tên và quản lý từng phiên xử lý. |
-| US02 | Steward | Tôi muốn đưa nhiều file CSV/XLSX vào một phiên và xem lỗi của từng file. |
+| US02 | Steward | Tôi muốn đưa nhiều file CSV vào một phiên và xem lỗi của từng file. |
 | US03 | Steward | Tôi muốn xem trước dữ liệu rồi chạy kiểm tra trùng cho phiên đã chọn. |
 | US04 | Steward | Tôi muốn theo dõi trạng thái và tiến độ của từng phiên. |
 | US05 | Steward | Tôi muốn xem các nhóm nghi trùng cùng bằng chứng AI trong đúng phiên. |
@@ -45,7 +47,7 @@ US02 tập trung vào tải và kiểm tra file, còn US03 bắt đầu bước 
 | ID | Quy tắc |
 | --- | --- |
 | BR01 | Steward có thể tạo nhiều phiên. Mỗi phiên có `session_id`, tên, mô tả (nếu có), người tạo, trạng thái và mốc thời gian riêng. |
-| BR02 | Một phiên nhận từ một đến nhiều file CSV/XLSX. Steward tải file lên; nhãn nguồn chỉ cho biết file đến từ đâu. |
+| BR02 | Một phiên nhận từ một đến nhiều file CSV. Steward tải file lên; hệ thống từ chối định dạng khác. Nhãn nguồn chỉ cho biết file đến từ đâu. |
 | BR03 | Mỗi file chỉ thuộc một phiên. Hệ thống không tự lấy dữ liệu từ CRM/ERP và không trộn bản ghi giữa các phiên. |
 | BR04 | Chỉ được thêm hoặc xóa file khi phiên còn `DRAFT` hoặc `READY`. Khi bắt đầu chạy, hệ thống chốt danh sách file đầu vào thành snapshot. Muốn dùng tập file khác, Steward phải tạo phiên mới. |
 | BR05 | Mỗi dòng nhập được nhận diện bằng `(import_batch_id, row_number)`. Hệ thống giữ dữ liệu gốc, dữ liệu đã chuẩn hóa và thông tin lỗi. Mã khách hàng trong file không phải mã duy nhất toàn hệ thống. |
@@ -68,8 +70,8 @@ US02 tập trung vào tải và kiểm tra file, còn US03 bắt đầu bước 
 | AC | Điều kiện kiểm thử |
 | --- | --- |
 | AC01 | Steward tạo được hai phiên khác tên; mỗi phiên có ID, trạng thái và trang chi tiết riêng. |
-| AC02 | Một phiên nhận được ít nhất hai file và hiện tên, số dòng hợp lệ, số dòng lỗi của từng file. Viewer không tải file lên được. |
-| AC03 | Chỉ bắt đầu xử lý khi có file hợp lệ. Lỗi file chỉ rõ dòng và cột; danh sách file bị khóa khi job bắt đầu. |
+| AC02 | Một phiên nhận được ít nhất hai file CSV và hiện tên, số dòng hợp lệ, số dòng lỗi của từng file. Viewer không tải file lên được. |
+| AC03 | File không phải CSV bị từ chối với thông báo rõ ràng. Chỉ bắt đầu xử lý khi có file CSV hợp lệ; lỗi dữ liệu chỉ rõ dòng và cột, danh sách file bị khóa khi job bắt đầu. |
 | AC04 | Danh sách phiên hiện trạng thái, tiến độ, file đầu vào và thời gian. Thay đổi bộ lọc không sửa dữ liệu. |
 | AC05 | Nhóm nghi trùng của phiên A không xuất hiện ở phiên B. Mỗi đề xuất AI có điểm và bằng chứng để truy vết. |
 | AC06 | Chỉ Steward được duyệt hoặc từ chối. Nếu dữ liệu đã thay đổi hoặc nhóm đã có quyết định, API trả `409`. |
@@ -132,9 +134,9 @@ US14 về đăng nhập và phân quyền là điều kiện chung của các ca
 
 - **Tác nhân:** Steward.
 - **Tiền điều kiện:** Steward có quyền với phiên; phiên còn `DRAFT` hoặc `READY` và chưa chốt file đầu vào.
-- **Luồng chính:** (1) Steward mở phiên và chọn một hoặc nhiều file CSV/XLSX → (2) Thêm nhãn xuất xứ nếu cần → (3) Hệ thống lưu từng file dưới đúng `session_id`, kiểm tra cột và dòng → (4) Hiển thị số dòng hợp lệ, số dòng lỗi và chi tiết lỗi theo từng file.
+- **Luồng chính:** (1) Steward mở phiên và chọn một hoặc nhiều file CSV → (2) Thêm nhãn xuất xứ nếu cần → (3) Hệ thống lưu từng file dưới đúng `session_id`, kiểm tra định dạng CSV, cột và dòng → (4) Hiển thị số dòng hợp lệ, số dòng lỗi và chi tiết lỗi theo từng file.
 - **Luồng thay thế:** Trước khi chạy so khớp, Steward có thể thêm file hoặc loại file đã chọn rồi kiểm tra lại.
-- **Ngoại lệ:** File sai định dạng hoặc vượt hạn mức thì báo lỗi cho file đó; phiên đã bắt đầu chạy thì không nhận thêm file và không thay đổi danh sách đã chốt.
+- **Ngoại lệ:** File không phải CSV hoặc vượt hạn mức thì báo lỗi cho file đó; phiên đã bắt đầu chạy thì không nhận thêm file và không thay đổi danh sách đã chốt.
 - **Hậu điều kiện:** Các file được nhận thuộc đúng một phiên. Bản ghi gốc và kết quả kiểm tra được giữ để xử lý tiếp; hệ thống chưa gộp hồ sơ.
 
 **UC05 – Duyệt hoặc từ chối gộp**

@@ -1,5 +1,7 @@
 # ERD tổng hợp – Unira (12 bảng, 19 quan hệ)
 
+[English version](./README.en.md)
+
 Sơ đồ dưới đây gom 12 bảng và 19 quan hệ khóa ngoại của Unira. Mỗi bảng hiển thị các cột chính, khóa và số lượng bản ghi có thể liên kết. Xem [DBML](../schema.dbml) để tra đủ các cột.
 
 [![ERD tổng hợp Unira](./erd-tong-the.png)](./erd-tong-the.svg)

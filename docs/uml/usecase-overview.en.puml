@@ -1,0 +1,36 @@
+@startuml
+' Unira — UML Use Case: multiple independent processing sessions
+left to right direction
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam usecaseBorderColor #3555a0
+skinparam usecaseBackgroundColor #f6faff
+skinparam actorBorderColor #334155
+
+actor "Steward" as S
+actor "Viewer" as V
+S --|> V : inherits view permissions
+
+rectangle "Unira" {
+  (UC01 — Manage processing sessions) as UC01
+  (UC02 — Upload files to a session) as UC02
+  (UC03 — Run matching for a session) as UC03
+  (UC04 — View likely duplicate groups) as UC04
+  (UC05 — Approve / reject a merge) as UC05
+  (UC06 — Search records by session) as UC06
+  (UC07 — Undo a mistaken merge) as UC07
+  (UC08 — View session statistics) as UC08
+  (UC09 — View data quality) as UC09
+  (UC10 — Download session clean CSV) as UC10
+}
+S -- UC01
+S -- UC02
+S -- UC03
+S -- UC04
+S -- UC05
+S -- UC07
+S -- UC09
+S -- UC10
+V -- UC06
+V -- UC08
+@enduml
