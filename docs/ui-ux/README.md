@@ -2,40 +2,36 @@
 
 [English version](./README.en.md)
 
-Ảnh các màn hình P01–P09 được kết xuất từ prototype, là dữ liệu demo, chưa kết nối backend hay AI.
-
-### P01 – Đăng nhập
-
-![P01 – Đăng nhập](./p01-dang-nhap.png)
+Các ảnh P02–P09 dùng dữ liệu giả lập để thể hiện luồng xử lý, bảng và biểu đồ. Giao diện được dựng bằng [HTML/CSS](./index.html) để có thể chỉnh sửa.
 
 ### P02 – Tổng quan
 
-![P02 – Tổng quan](./p02-tong-quan.png)
+![P02 – Tổng quan](./P02_Tong_quan.png)
 
 ### P03 – Danh sách phiên
 
-![P03 – Danh sách phiên](./p03-danh-sach-phien.png)
+![P03 – Danh sách phiên](./P03_Danh_sach_phien.png)
 
 ### P04 – Tạo phiên / Nhập file
 
-![P04 – Tạo phiên / Nhập file CSV](./p04-tao-phien-nhap-file-csv.png)
+![P04 – Tạo phiên / Nhập file CSV](./P04_Tao_phien_nhap_CSV.png)
 
 ### P05 – Chi tiết phiên
 
-![P05 – Chi tiết phiên với file CSV](./p05-chi-tiet-phien-csv.png)
+![P05 – Chi tiết phiên](./P05_Chi_tiet_phien.png)
 
-### P06 – Kết quả AI
+### P06 – Kết quả so khớp
 
-![P06 – Kết quả AI](./p06-ket-qua-ai.png)
+![P06 – Kết quả so khớp](./P06_Ket_qua_so_khop.png)
 
 ### P07 – Xác minh nhóm
 
-![P07 – Xác minh nhóm](./p07-xac-minh-nhom.png)
+![P07 – Xác minh nhóm](./P07_Xac_minh_nhom.png)
 
 ### P08 – Hồ sơ khách hàng
 
-![P08 – Hồ sơ khách hàng](./p08-ho-so-khach-hang.png)
+![P08 – Hồ sơ khách hàng](./P08_Ho_so_khach_hang.png)
 
 ### P09 – Thống kê
 
-![P09 – Thống kê](./p09-thong-ke.png)
+![P09 – Thống kê](./P09_Thong_ke_bao_cao.png)
