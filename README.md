@@ -647,18 +647,21 @@ erDiagram
 
 A session can contain multiple files. Each file, possible duplicate group, unified record, and clean export belongs to exactly one session. Original data is not deleted when records are merged.
 
-### 4.2 OpenAPI 3.0 API documentation
+### 4.2 API documentation — OpenAPI 3.0
 
-The API contract describes interactions between the web interface and the processing layer, including request data, responses, access rules, and error cases.
+The API contract describes interactions between the web interface and the processing layer, including request data, responses, access rules, and error cases. It uses OpenAPI 3.0.3 and currently describes 20 proposed operations.
+
+- [View the API documentation in English](./docs/api/openapi.en.yaml)
+- [View the API documentation in Vietnamese](./docs/api/openapi.yaml)
 
 | Operation group | Supported actions |
 | --- | --- |
 | Sign-in | Authenticate users and retrieve their permissions. |
 | Processing sessions | Create and search sessions and view their progress. |
-| Input files | Upload files and view errors for each file. |
+| Input files | Upload files and view status and counts of valid and invalid rows. |
 | Matching | Start processing and view possible duplicate groups. |
 | Review decisions | Merge records or keep them separate. |
 | Customer records | Search records and split incorrect merges. |
 | Clean exports and statistics | Download the result for the correct session and view summary figures. |
 
-Every operation must check the user's permissions and the requested session. If the data or its status has changed, the system returns a clear error so the user can reload before continuing.
+Sign-in is public; all other operations require authentication and appropriate permissions. Session-related operations must check access to the requested session. This is a proposed contract, not a running API.

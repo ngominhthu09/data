@@ -646,18 +646,21 @@ erDiagram
 
 Một phiên có thể có nhiều file. Mỗi file, nhóm nghi trùng, hồ sơ thống nhất và file sạch chỉ thuộc đúng một phiên. Dữ liệu gốc không bị xóa khi hợp nhất.
 
-### 4.2 OpenAPI 3.0 API documentation
+### 4.2 Tài liệu API — OpenAPI 3.0
 
-Hợp đồng API mô tả các thao tác giữa giao diện và phần xử lý, bao gồm dữ liệu cần gửi, kết quả trả về, quyền truy cập và trường hợp lỗi.
+Hợp đồng API mô tả các thao tác giữa giao diện và phần xử lý, bao gồm dữ liệu cần gửi, kết quả trả về, quyền truy cập và trường hợp lỗi. Tài liệu dùng OpenAPI 3.0.3 và hiện mô tả 20 thao tác dự kiến.
+
+- [Xem tài liệu API tiếng Việt](./docs/api/openapi.yaml)
+- [Xem tài liệu API tiếng Anh](./docs/api/openapi.en.yaml)
 
 | Nhóm thao tác | Việc được hỗ trợ |
 | --- | --- |
 | Đăng nhập | Xác thực người dùng và xem quyền của mình. |
 | Phiên xử lý | Tạo, tìm và xem tiến độ phiên. |
-| File đầu vào | Tải file lên và xem lỗi theo từng file. |
+| File đầu vào | Tải file lên và xem trạng thái, số dòng hợp lệ và số dòng lỗi. |
 | So khớp | Bắt đầu xử lý và xem nhóm nghi trùng. |
 | Duyệt kết quả | Gộp hoặc giữ riêng các hồ sơ. |
 | Hồ sơ khách hàng | Tra cứu và tách trường hợp gộp nhầm. |
 | File sạch và thống kê | Tải kết quả của đúng phiên và xem số liệu tổng hợp. |
 
-Mỗi thao tác phải kiểm tra quyền và phiên đang được yêu cầu. Khi dữ liệu hoặc trạng thái đã thay đổi, hệ thống trả lỗi rõ ràng để người dùng tải lại trước khi tiếp tục.
+Đăng nhập là thao tác công khai; các thao tác còn lại yêu cầu xác thực và kiểm tra quyền phù hợp. Những thao tác liên quan đến phiên phải kiểm tra đúng phiên được yêu cầu. Đây là hợp đồng dự kiến, chưa phải API đang chạy.
