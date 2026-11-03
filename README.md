@@ -1,63 +1,126 @@
 # Unira
 
-[English version](./README.en.md)
+Unira giúp tìm và hợp nhất hồ sơ khách hàng bị trùng trong các file CSV. Người quản lý dữ liệu tải file lên, xem những trường hợp có thể trùng và quyết định có gộp hay không. Mỗi phiên xử lý có kết quả và file dữ liệu sạch riêng.
 
-Unira là hệ thống phát hiện và hợp nhất hồ sơ khách hàng trùng lặp.
+## 1. Requirements - INVEST, Use Cases, and Acceptance Criteria
 
-Một khách hàng có thể xuất hiện nhiều lần trong dữ liệu, với tên, số điện thoại hoặc địa chỉ được ghi khác nhau. Unira nhận file CSV do Steward tải lên, kiểm tra dữ liệu và tìm những hồ sơ có khả năng trùng nhau. Steward xem bằng chứng và quyết định có gộp hay không; sau khi được duyệt, hệ thống mới tạo hoặc cập nhật hồ sơ thống nhất (Golden Record). Mỗi phiên có thể chứa nhiều file và có kết quả xử lý riêng. Khi phiên hoàn tất, Steward tải CSV dữ liệu sạch của phiên đó. Bản ghi gốc vẫn được giữ để đối chiếu hoặc tách hồ sơ nếu gộp nhầm.
+Phần này nêu những việc Unira cần làm, ai sử dụng và cách xác nhận kết quả. **User Story (US)** là nhu cầu của người dùng; **Use Case (UC)** là một thao tác trong hệ thống; **Acceptance Criteria (AC)** là điều kiện để kiểm tra thao tác đó.
 
-**Luồng xử lý:** `Tạo phiên → Tải file lên → Kiểm tra và chuẩn hóa → So khớp → Steward duyệt → Hợp nhất → Kiểm tra kết quả → Xuất CSV`.
+### 1.1. Product Mind Map
 
----
+![Sơ đồ ý tưởng sản phẩm Unira](./docs/mindmap.png)
 
-## 1. Yêu cầu – INVEST, use case và tiêu chí chấp nhận
-
-Tài liệu gồm 15 câu chuyện người dùng, 10 use case, 18 quy tắc nghiệp vụ và 17 tiêu chí chấp nhận. [Bản chi tiết](./docs/requirements/README.md) ghi rõ từng yêu cầu và cách kiểm tra.
-
-### 1.1. Sơ đồ ý tưởng sản phẩm
-
-![Product Mind Map của Unira](./docs/mindmap.png)
-
-### 1.2. Yêu cầu theo INVEST
-
-Các câu chuyện người dùng được rà theo INVEST để mỗi yêu cầu có giá trị rõ ràng và có thể kiểm thử. Có thể thay đổi cách triển khai mà vẫn giữ nguyên mục tiêu và quy tắc nghiệp vụ.
-
-| Tiêu chí INVEST | Áp dụng cho Unira |
+| Nhóm chức năng | Mục đích |
 | --- | --- |
-| Independent | Mỗi yêu cầu có kết quả riêng, dù có thể nằm trong cùng quy trình. |
-| Negotiable | Có thể điều chỉnh giao diện và cách triển khai, miễn là vẫn đúng quy tắc về phiên và quyền. |
-| Valuable | Yêu cầu giúp nhập, so khớp, xác minh hoặc xuất dữ liệu khách hàng sạch. |
-| Estimable | Nêu rõ vai trò, đầu vào, đầu ra và lỗi để có thể ước lượng công việc. |
-| Small | Tách thao tác của người dùng khỏi công việc chạy nền khi cần. |
-| Testable | Có tiêu chí chấp nhận để kiểm tra kết quả. |
+| Phiên xử lý | Tách mỗi đợt công việc thành một phiên có file và kết quả riêng. |
+| Nhập dữ liệu | Tải nhiều file CSV, xem trước dữ liệu và biết file nào có lỗi. |
+| Tìm hồ sơ trùng | Đề xuất các nhóm hồ sơ có thể thuộc cùng một khách hàng. |
+| Xác minh | Cho người quản lý xem lý do và quyết định gộp hay giữ riêng. |
+| Hồ sơ khách hàng | Tra cứu kết quả, xem dữ liệu gốc và sửa trường hợp gộp nhầm. |
+| File sạch và thống kê | Tải kết quả của từng phiên và theo dõi tiến độ xử lý. |
 
-| Mã yêu cầu | Phạm vi |
+### 1.2. INVEST Requirements
+
+#### 1.2.1. INVEST Principles
+
+| Tiêu chí | Ý nghĩa trong Unira |
 | --- | --- |
-| US14 | Đăng nhập và phân quyền Steward/Viewer. |
-| US01–US04 | Tạo phiên, nhập nhiều file, chạy AI và theo dõi tiến độ. |
-| US05–US08 | Xem bằng chứng, duyệt/từ chối và tạo Golden Record. |
-| US09–US10 | Tách hồ sơ gộp sai và tra cứu theo phiên. |
-| US11–US13 | Thống kê và theo dõi kết quả, quyết định xử lý. |
-| US15 | Tải CSV sạch của đúng phiên đã hoàn tất. |
+| **Independent – Độc lập** | Mỗi nhu cầu có một kết quả riêng; chỉ phụ thuộc bước khác khi cần. |
+| **Negotiable – Có thể điều chỉnh** | Cách trình bày và triển khai có thể thay đổi, nhưng mục tiêu và quyền truy cập được giữ. |
+| **Valuable – Có giá trị** | Mỗi nhu cầu giúp nhập, kiểm tra, hợp nhất hoặc xuất dữ liệu. |
+| **Estimable – Có thể ước lượng** | Người làm, đầu vào, đầu ra và tình huống lỗi được nêu rõ. |
+| **Small – Đủ nhỏ** | Việc lớn được tách thành những bước có thể hoàn thành riêng. |
+| **Testable – Có thể kiểm tra** | Mỗi nhu cầu có kết quả quan sát được. |
 
-Mọi file, bản ghi, kết quả so khớp, quyết định duyệt, hồ sơ thống nhất và CSV của một phiên phải gắn với cùng `session_id`. Steward duyệt trước khi hệ thống gộp hồ sơ; bản ghi gốc được giữ để truy vết và xử lý khi gộp sai. Chi tiết nằm trong [danh sách yêu cầu, quy tắc và tiêu chí chấp nhận](./docs/requirements/README.md).
+#### 1.2.2. User Stories
 
-### 1.3. Các ca sử dụng (Use case)
+| ID | Vai trò | User story |
+| --- | --- | --- |
+| US01 | Steward | Tôi muốn tạo, đặt tên và quản lý từng phiên xử lý. |
+| US02 | Steward | Tôi muốn đưa nhiều file CSV vào một phiên và xem lỗi của từng file. |
+| US03 | Steward | Tôi muốn xem trước dữ liệu rồi chạy kiểm tra trùng cho phiên đã chọn. |
+| US04 | Steward | Tôi muốn theo dõi trạng thái và tiến độ của từng phiên. |
+| US05 | Steward | Tôi muốn xem các nhóm nghi trùng cùng lý do gợi ý trong đúng phiên. |
+| US06 | Steward | Tôi muốn duyệt hoặc từ chối đề xuất gộp của từng nhóm. |
+| US07 | Steward | Tôi muốn chọn thông tin cho hồ sơ thống nhất trước khi duyệt. |
+| US08 | Steward | Tôi muốn hệ thống tự tạo hồ sơ thống nhất sau khi tôi duyệt. |
+| US09 | Steward | Tôi muốn tách hồ sơ gộp sai mà vẫn giữ được dữ liệu gốc. |
+| US10 | Steward, Viewer | Tôi muốn tra cứu hồ sơ đã xử lý theo từng phiên. |
+| US11 | Steward, Viewer | Tôi muốn xem thống kê chung và kết quả của từng phiên. |
+| US12 | Steward | Tôi muốn biết mỗi phiên có bao nhiêu bản ghi hợp lệ, bản ghi lỗi và kết quả xử lý ra sao. |
+| US13 | Steward | Tôi muốn biết nhóm nào đã được duyệt hoặc từ chối, và ai đã quyết định. |
+| US14 | Steward, Viewer | Tôi muốn đăng nhập và chỉ dùng được các chức năng phù hợp với vai trò của mình. |
+| US15 | Steward | Tôi muốn tải CSV sạch của phiên đã hoàn tất mà không lấy nhầm file của phiên khác. |
 
-#### 1.3.1. Tác nhân
+#### 1.2.3. INVEST Review by Story Group
 
-| Tác nhân | Vai trò trong hệ thống |
+| Nhóm | Phụ thuộc cần thiết | Phần có thể điều chỉnh | Giá trị | Cách chia nhỏ và kiểm tra |
+| --- | --- | --- | --- | --- |
+| **US01–US04** Phiên và file | Đăng nhập trước khi tạo phiên | Bố cục biểu mẫu, cách hiển thị tiến độ | Gom nhiều file trong một đợt xử lý | Tách tạo phiên, nhập file và chạy so khớp; kiểm tra lỗi từng file. |
+| **US05–US08** Xác minh | Cần có kết quả so khớp | Cách so sánh và trình bày lý do | Tránh gộp sai khách hàng | Tách xem nhóm, quyết định và tạo hồ sơ; chỉ nhóm đã duyệt mới được gộp. |
+| **US09–US10** Hồ sơ | Cần hồ sơ đã xử lý | Bộ lọc và bố cục chi tiết | Tra cứu và sửa sai | Kiểm tra tách hồ sơ mà vẫn giữ dữ liệu gốc. |
+| **US11–US13** Theo dõi | Cần dữ liệu của phiên | Cách vẽ biểu đồ | Biết tiến độ và ai đã quyết định | Kiểm tra thống kê đúng phiên và lịch sử quyết định. |
+| **US14–US15** Quyền và xuất file | Cần đăng nhập và phiên hoàn tất | Cách thông báo, tên file | Truy cập an toàn, nhận đúng kết quả | Kiểm tra người xem không tải file và hai phiên không dùng chung kết quả. |
+
+#### 1.2.4. Business Rules
+
+| Mã | Quy tắc |
 | --- | --- |
-| **Steward** | Tạo phiên, tải file, chạy so khớp, duyệt kết quả, quản lý hồ sơ và tải CSV sạch. |
-| **Viewer** | Xem các phiên được cấp quyền, tra cứu hồ sơ và xem thống kê. |
+| BR01 | Một người quản lý có thể tạo nhiều phiên; mỗi phiên có tiến độ riêng. |
+| BR02 | Một phiên có thể nhận nhiều file CSV và báo lỗi cho từng file. |
+| BR03 | File chỉ thuộc một phiên; dữ liệu giữa các phiên không bị trộn. |
+| BR04 | Sau khi bắt đầu so khớp, danh sách file của phiên không còn thay đổi. |
+| BR05 | Dữ liệu gốc được giữ lại cùng kết quả kiểm tra file. |
+| BR06 | Hệ thống chỉ so sánh những hồ sơ có khả năng liên quan để xử lý nhanh hơn. |
+| BR07 | Gợi ý trùng phải có lý do; trùng tên một mình không đủ để tự gộp. |
+| BR08 | Người quản lý dữ liệu phải duyệt trước khi hồ sơ được gộp. |
+| BR09 | Một nhóm đã xử lý không được duyệt lần nữa. |
+| BR10 | Hồ sơ thống nhất chỉ gồm dữ liệu trong cùng một phiên. |
+| BR11 | Một hồ sơ gốc không được gộp vào hai hồ sơ thống nhất đang có hiệu lực. |
+| BR12 | Chỉ tạo file sạch khi mọi nhóm cần xem xét đã được xử lý. |
+| BR13 | Mỗi khách hàng hợp lệ xuất hiện một lần trong file sạch của phiên. |
+| BR14 | Mỗi phiên có một file sạch hiện hành. |
+| BR15 | Sau khi tách một hồ sơ gộp nhầm, file cũ ngừng tải cho đến khi file mới sẵn sàng. |
+| BR16 | Mọi thao tác xem, sửa và tải file đều phải kiểm tra quyền với đúng phiên. |
+| BR17 | Các phiên có thể xử lý độc lập; tiến độ của từng phiên được lưu lại. |
+| BR18 | Quyết định duyệt hoặc từ chối được ghi lại để có thể kiểm tra về sau. |
 
-File được xuất từ CRM hoặc ERP vẫn do Steward tải lên; các hệ thống đó không tương tác trực tiếp với Unira.
+#### 1.2.5. Acceptance Criteria
 
-#### 1.3.2. Sơ đồ Use Case tổng quan
+| Mã | Điều kiện kiểm tra |
+| --- | --- |
+| AC01 | Tạo hai phiên thì mỗi phiên có tên, trạng thái và trang chi tiết riêng. |
+| AC02 | Một phiên nhận ít nhất hai file và hiển thị số dòng hợp lệ, số dòng lỗi của từng file. |
+| AC03 | File không đúng định dạng bị từ chối; lỗi dữ liệu nêu rõ vị trí để sửa. |
+| AC04 | Danh sách phiên hiển thị đúng trạng thái, tiến độ và các file đã nhập. |
+| AC05 | Nhóm nghi trùng của phiên A không xuất hiện trong phiên B; mỗi gợi ý có lý do. |
+| AC06 | Chỉ người quản lý được duyệt; nhóm đã có quyết định không được duyệt lại. |
+| AC07 | Duyệt thì tạo hồ sơ thống nhất; từ chối thì các hồ sơ được giữ riêng. |
+| AC08 | Từ hồ sơ thống nhất có thể xem lại dữ liệu gốc và nguồn của nó. |
+| AC09 | Tách hồ sơ gộp nhầm không làm mất dữ liệu gốc và tạo lại kết quả. |
+| AC10 | Phiên chỉ hoàn tất khi các nhóm đã được xử lý và file sạch đã sẵn sàng. |
+| AC11 | File sạch của phiên A không chứa dữ liệu chỉ có ở phiên B. |
+| AC12 | File sạch giữ đúng tiếng Việt và số dòng sau xử lý. |
+| AC13 | Tải lại file hiện hành không tạo thêm phiên hoặc file mới. |
+| AC14 | Sau khi tách hồ sơ, file cũ không tải được cho đến khi file mới hoàn tất. |
+| AC15 | Tổng quan hiển thị số phiên đang chạy, chờ duyệt, hoàn tất và gặp lỗi. |
+| AC16 | Thống kê theo phiên hiển thị số dòng hợp lệ, dòng lỗi và nhóm đã xử lý. |
+| AC17 | Khi đo hiệu năng, công bố thời gian và tài nguyên thực tế thay vì ước đoán. |
 
-![Sơ đồ Use Case của Unira](./docs/uml/usecase-overview.png)
+### 1.3. Use Cases
 
-#### 1.3.3. Danh sách Use Case
+#### 1.3.1. Actors
+
+| Tác nhân | Vai trò |
+| --- | --- |
+| **Data Steward** (người quản lý dữ liệu) | Tạo phiên, nhập file, duyệt kết quả, sửa gộp nhầm và tải file sạch. |
+| **Viewer** (người xem) | Xem những phiên, hồ sơ và thống kê được cấp quyền. |
+
+#### 1.3.2. Use Case Overview Diagram
+
+![Sơ đồ use case tổng quan của Unira](./docs/uml/usecase-overview.png)
+
+#### 1.3.3. Use Case List
 
 | Mã | Ca sử dụng | Tác nhân chính | User story liên quan |
 | --- | --- | --- | --- |
@@ -72,665 +135,326 @@ File được xuất từ CRM hoặc ERP vẫn do Steward tải lên; các hệ 
 | UC09 | Xem chất lượng dữ liệu | Steward | US12 |
 | UC10 | Tải CSV sạch của phiên | Steward | US15 |
 
-US14 về đăng nhập và phân quyền là điều kiện chung của các ca sử dụng. Backend kiểm tra quyền ở từng thao tác, kể cả khi giao diện đã ẩn nút.
+Đăng nhập và kiểm tra quyền là điều kiện chung trước khi thực hiện các thao tác trên.
 
-#### 1.3.4. Đặc tả các Use Case trọng tâm
+#### 1.3.4. Key Use Case Specifications
 
 **UC01 – Quản lý phiên xử lý**
 
-- **Tác nhân:** Steward.
-- **Tiền điều kiện:** Steward đã đăng nhập và có quyền tạo phiên.
-- **Luồng chính:** (1) Steward mở danh sách phiên và chọn **Tạo phiên mới** → (2) Nhập tên, có thể thêm mô tả → (3) Hệ thống kiểm tra dữ liệu và tạo `session_id`, trạng thái `DRAFT` → (4) Mở màn hình thêm file cho phiên vừa tạo.
-- **Luồng thay thế:** Steward mở lại một phiên có sẵn để xem trạng thái, file đầu vào và kết quả; dữ liệu phiên không thay đổi.
-- **Ngoại lệ:** Tên trống thì yêu cầu nhập lại; không đủ quyền thì trả `403` và không tạo phiên.
-- **Hậu điều kiện:** Phiên mới được lưu với mã, người tạo và trạng thái riêng; chưa có job so khớp hoặc CSV.
+- **Người thực hiện:** Data Steward.
+- **Điều kiện bắt đầu:** Đã đăng nhập và có quyền tạo phiên.
+- **Luồng chính:** Mở danh sách phiên → đặt tên phiên mới → lưu → mở trang nhập file.
+- **Trường hợp khác:** Có thể mở lại phiên đã tạo để xem tiến độ.
+- **Kết quả:** Phiên có danh sách file và kết quả riêng, ban đầu chưa chạy so khớp.
 
-**UC02 – Tải file vào phiên**
+**UC02 – Nhập file vào phiên**
 
-- **Tác nhân:** Steward.
-- **Tiền điều kiện:** Steward có quyền với phiên; phiên còn `DRAFT` hoặc `READY` và chưa chốt file đầu vào.
-- **Luồng chính:** (1) Steward mở phiên và chọn một hoặc nhiều file CSV → (2) Thêm nhãn xuất xứ nếu cần → (3) Hệ thống lưu từng file dưới đúng `session_id`, kiểm tra định dạng CSV, cột và dòng → (4) Hiển thị số dòng hợp lệ, số dòng lỗi và chi tiết lỗi theo từng file.
-- **Luồng thay thế:** Trước khi chạy so khớp, Steward có thể thêm file hoặc loại file đã chọn rồi kiểm tra lại.
-- **Ngoại lệ:** File không phải CSV hoặc vượt hạn mức thì báo lỗi cho file đó; phiên đã bắt đầu chạy thì không nhận thêm file và không thay đổi danh sách đã chốt.
-- **Hậu điều kiện:** Các file được nhận thuộc đúng một phiên. Bản ghi gốc và kết quả kiểm tra được giữ để xử lý tiếp; hệ thống chưa gộp hồ sơ.
+- **Người thực hiện:** Data Steward.
+- **Điều kiện bắt đầu:** Phiên chưa bắt đầu xử lý.
+- **Luồng chính:** Chọn một hoặc nhiều file CSV → xem kết quả kiểm tra từng file → sửa hoặc loại file lỗi → bắt đầu so khớp khi có file hợp lệ.
+- **Trường hợp lỗi:** File sai định dạng hoặc thiếu dữ liệu cần thiết được báo rõ; phiên đã chạy không nhận thêm file.
+- **Kết quả:** File hợp lệ được gắn với đúng phiên, dữ liệu gốc được giữ lại.
 
 **UC05 – Duyệt hoặc từ chối gộp**
 
-- **Tác nhân:** Steward.
-- **Tiền điều kiện:** Phiên ở `WAITING_REVIEW`; nhóm thuộc phiên và còn `PENDING`.
-- **Luồng chính:** (1) Steward mở nhóm và xem hồ sơ cùng bằng chứng so khớp → (2) Chọn giá trị cho Golden Record rồi xác nhận duyệt → (3) Backend kiểm tra quyền, khóa nhóm và kiểm tra lại trạng thái → (4) Lưu quyết định và giao việc hợp nhất → (5) Worker tạo hoặc cập nhật master, liên kết bản ghi nguồn trong cùng phiên và cập nhật tiến độ.
-- **Luồng thay thế:** Steward từ chối đề xuất; hệ thống lưu quyết định nhưng không tạo liên kết gộp.
-- **Ngoại lệ:** Nhóm đã được xử lý hoặc dữ liệu nguồn thay đổi thì trả `409` và yêu cầu xem lại. Nếu việc hợp nhất lỗi, hệ thống ghi trạng thái lỗi để có thể chạy lại an toàn.
-- **Hậu điều kiện:** Mỗi nhóm có một quyết định đang có hiệu lực. Chỉ nhóm được duyệt mới được hợp nhất; CSV cuối chỉ được xuất khi toàn bộ phiên đủ điều kiện.
+- **Người thực hiện:** Data Steward.
+- **Điều kiện bắt đầu:** Phiên có nhóm nghi trùng chưa được xử lý.
+- **Luồng chính:** Mở nhóm → so sánh hồ sơ và lý do gợi ý → chọn gộp hoặc giữ riêng → xác nhận.
+- **Trường hợp lỗi:** Nếu nhóm đã có quyết định, hệ thống yêu cầu tải lại trước khi tiếp tục.
+- **Kết quả:** Chỉ nhóm được duyệt mới tạo hồ sơ thống nhất; quyết định được lưu lại.
 
-**UC10 – Tải CSV sạch của phiên**
+**UC10 – Tải file sạch**
 
-- **Tác nhân:** Steward.
-- **Tiền điều kiện:** Phiên đã `COMPLETED` và CSV hiện hành ở trạng thái `READY`.
-- **Luồng chính:** (1) Steward mở chi tiết phiên và chọn **Tải CSV sạch** → (2) Backend kiểm tra quyền, `session_id` và trạng thái file → (3) Cấp đường dẫn tải có thời hạn → (4) Steward tải CSV của đúng phiên.
-- **Luồng thay thế:** Tải lại cùng bản xuất hiện hành; hệ thống không tạo file hoặc job mới.
-- **Ngoại lệ:** Chưa có CSV `READY`, phiên đang tạo lại file sau khi tách hồ sơ hoặc người dùng không đủ quyền thì từ chối tải. Viewer nhận `403`.
-- **Hậu điều kiện:** Steward nhận file hiện hành; dữ liệu, trạng thái phiên và lịch sử so khớp không thay đổi.
+- **Người thực hiện:** Data Steward.
+- **Điều kiện bắt đầu:** Phiên và file kết quả đã hoàn tất.
+- **Luồng chính:** Mở chi tiết phiên → chọn tải file sạch → nhận đúng file của phiên đó.
+- **Trường hợp lỗi:** File chưa sẵn sàng hoặc đang được tạo lại thì chưa thể tải.
+- **Kết quả:** Dữ liệu phiên không thay đổi khi tải file.
 
-### 1.4. Vai trò và phân quyền
+### 1.4. Roles and Permissions
 
-| Vai trò | Được làm | Không được làm |
+#### 1.4.1. Permission Matrix
+
+Ký hiệu: **✓** được phép; **—** không được phép; **Theo quyền** chỉ xem phiên được cấp.
+
+| Chức năng | Data Steward | Viewer |
+| --- | :---: | :---: |
+| Xem danh sách phiên, hồ sơ và thống kê | Theo quyền | Theo quyền |
+| Tạo phiên và nhập file | ✓ | — |
+| Chạy so khớp và xem nhóm nghi trùng | ✓ | — |
+| Duyệt, từ chối hoặc tách hồ sơ | ✓ | — |
+| Tải file sạch | ✓ | — |
+
+#### 1.4.2. Business States
+
+| Đối tượng | Các trạng thái dễ hiểu | Ý nghĩa |
 | --- | --- | --- |
-| **Data Steward** (người quản lý dữ liệu) | Tạo phiên, tải file CSV, chạy so khớp, duyệt kết quả, quản lý hồ sơ, tách hồ sơ gộp sai và tải CSV sạch. | Không sửa hoặc xóa file gốc trên màn hình hợp nhất. |
-| **Viewer** (người xem) | Xem các phiên được cấp quyền, kết quả xử lý và Golden Record trong từng phiên. | Không tải file lên, chạy job, duyệt, hợp nhất hoặc tách hồ sơ. |
+| Phiên xử lý | Chưa chạy · Đang chạy · Chờ duyệt · Hoàn tất · Gặp lỗi | Cho biết phiên đang ở bước nào. |
+| File đầu vào | Đang kiểm tra · Hợp lệ · Có lỗi | Cho biết file có thể được dùng để so khớp không. |
+| Nhóm nghi trùng | Chờ duyệt · Đã duyệt · Giữ riêng | Cho biết quyết định với nhóm. |
+| File sạch | Đang tạo · Sẵn sàng · Cần tạo lại | Cho biết khi nào được tải. |
 
-Sơ đồ chỉ có hai vai trò: Steward và Viewer. Steward tải file lên; CRM/ERP, nếu được ghi trên file, chỉ là thông tin xuất xứ. Worker, Splink và LangGraph là các thành phần bên trong hệ thống.
+## 2. Information Architecture, Screen Hierarchy, and UI/UX
 
-“Nguồn dữ liệu” cho biết file được lấy từ đâu, chẳng hạn do Steward xuất từ CRM. Mỗi phiên xử lý là một đợt công việc độc lập, gồm các file đầu vào, lần chạy so khớp, quyết định duyệt và CSV kết quả. Job là công việc chạy nền trong phiên đó.
+Unira có 9 màn hình. Mỗi phiên có các file, nhóm nghi trùng, hồ sơ và file sạch riêng. Hộp thoại hoặc bảng chi tiết nằm trong màn hình đang mở, không tính thành màn hình mới.
 
-## 2. Kiến trúc thông tin và phân cấp màn hình
+### 2.1. Information Architecture
 
-Unira có **9 màn hình (P01–P09)**. Một phiên có thể chứa nhiều file và nhóm nghi trùng, nhưng chỉ có một bộ kết quả và một CSV hiện hành của riêng phiên đó. Modal và panel chi tiết thuộc trang đang mở, không tính là trang riêng.
-
-### 2.1. Kiến trúc thông tin (Information Architecture)
-
-#### 2.1.1. Cây phân cấp Page
+#### 2.1.1. Page Hierarchy
 
 ```text
-P01 Đăng nhập
-└── P02 Tổng quan
-    ├── P03 Danh sách phiên
-    │   ├── P04 Tạo phiên / nhập file
-    │   └── P05 Chi tiết phiên
-    │       ├── P06 Kết quả AI của phiên
-    │       │   └── P07 Xác minh nhóm nghi trùng
-    │       └── P08 Hồ sơ khách hàng (đã chọn phiên)
-    ├── P08 Hồ sơ khách hàng (chọn phiên trước khi tra cứu)
-    └── P09 Thống kê
+P01 Login
+└── P02 Overview
+    ├── P03 Session list
+    │   ├── P04 Create session / Import files
+    │   └── P05 Session details
+    │       ├── P06 Matching results
+    │       │   └── P07 Review possible duplicates
+    │       └── P08 Customer records
+    ├── P08 Customer records (choose a session first)
+    └── P09 Statistics
 ```
 
-P04 cũng có thể mở từ P02; P05 có đường quay về P03. Các đường dẫn đến P06–P08 luôn mang theo phiên đang chọn.
+P04 có thể mở trực tiếp từ P02. Khi đi từ P05 đến P06–P08, hệ thống giữ đúng phiên đang chọn.
 
-#### 2.1.2. Nội dung từng Page theo Section
+#### 2.1.2. Page Content by Section
 
-Mỗi Section là một khối nội dung của trang. Nút, biểu mẫu và phản hồi được mô tả ngay trong khối liên quan.
+Mỗi **Section** là một khối nội dung trên màn hình. Các nút và thông báo được mô tả cùng khối mà chúng phục vụ.
 
-##### P01 – Đăng nhập
+##### P01 – Login
 
-| Section | Mô tả nội dung và chức năng |
+| Section | Nội dung và thao tác |
 | --- | --- |
-| **Form đăng nhập** | Ô email, mật khẩu, nút **Đăng nhập**; nhãn lỗi trường bắt buộc và sai thông tin. |
-| **Phản hồi & điều hướng** | Thông báo tài khoản bị khóa/hết phiên; chuyển đến P02 khi đăng nhập thành công. |
+| Đăng nhập | Nhập tài khoản và mật khẩu, chọn **Đăng nhập**. |
+| Thông báo | Báo thông tin sai hoặc tài khoản không được phép; đăng nhập thành công chuyển đến P02. |
 
-##### P02 – Tổng quan
+##### P02 – Overview
 
-| Section | Mô tả nội dung và chức năng |
+| Section | Nội dung và thao tác |
 | --- | --- |
-| **Chỉ số chung** | Thẻ **Tổng số phiên**, **Đang chạy**, **Chờ duyệt**, **Hoàn tất**, **Thất bại**; cho xem tổng quan theo quyền. |
-| **Các phiên gần đây** | Bảng 5–10 phiên mới: tên, số file, số bản ghi, trạng thái, thời gian; nhấn tên → P05. |
-| **Công việc cần xử lý** | Danh sách phiên đang chờ Steward xác minh hoặc phiên lỗi; nút **Xem phiên**. |
-| **Thao tác nhanh** | Nút **Tạo phiên mới** dành cho Steward → P04; Viewer không có nút này. |
+| Tình hình chung | Tổng số phiên, phiên đang chạy, chờ duyệt, hoàn tất và gặp lỗi. |
+| Phiên gần đây | Mở nhanh phiên cần tiếp tục xử lý. |
+| Việc cần làm | Nhắc các phiên đang chờ duyệt hoặc cần sửa lỗi. |
+| Tạo phiên | Người quản lý dữ liệu mở P04; người xem không có thao tác này. |
 
-##### P03 – Danh sách phiên
+##### P03 – Session List
 
-| Section | Mô tả nội dung và chức năng |
+| Section | Nội dung và thao tác |
 | --- | --- |
-| **Thanh tiêu đề** | Tên trang, tổng số phiên; nút **Tạo phiên mới** → P04 (Steward). |
-| **Tìm kiếm & bộ lọc** | Tìm theo tên/mã phiên; lọc trạng thái, người tạo, khoảng thời gian; nút **Xóa bộ lọc**. |
-| **Bảng phiên** | Cột **Mã phiên, Tên phiên, Số file, Số bản ghi, Tiến độ, Trạng thái, Ngày tạo, File CSV**. Nhấn hàng → P05. |
-| **Phân trang & trạng thái** | Phân trang phía server, số phiên mỗi trang; thông báo khi không có phiên hoặc tải lỗi. |
+| Tìm và lọc | Tìm theo tên phiên, lọc theo trạng thái và thời gian. |
+| Danh sách | Xem tên, số file, tiến độ và trạng thái; chọn một phiên để mở P05. |
+| Tạo mới | Người quản lý dữ liệu có thể mở P04. |
 
-##### P04 – Tạo phiên / Nhập file
+##### P04 – Create Session / Import Files
 
-| Section | Mô tả nội dung và chức năng |
+| Section | Nội dung và thao tác |
 | --- | --- |
-| **Thông tin phiên** | Ô **Tên phiên** (bắt buộc), **Mô tả** (tùy chọn), người tạo; khi tạo sinh mã phiên và trạng thái `DRAFT`. |
-| **Tải nhiều file** | Khu chọn/kéo-thả **nhiều file CSV**, bảng tên file, dung lượng, nhãn xuất xứ do Steward nhập, nút loại bỏ **trước khi chạy**. File không phải CSV được báo lỗi ngay khi chọn. |
-| **Kiểm tra dữ liệu** | Xem trước vài dòng và cột; số dòng hợp lệ/lỗi của **mỗi file**, thông báo lỗi cột bắt buộc/định dạng; link xem chi tiết lỗi. |
-| **Hành động** | **Lưu phiên**, **Bắt đầu xử lý AI** (chỉ mở khi có file hợp lệ), **Hủy/quay lại**. Sau khi bắt đầu khóa danh sách file và chuyển P05. |
+| Thông tin phiên | Đặt tên và mô tả ngắn cho phiên. |
+| File đầu vào | Thêm nhiều file CSV, xem tên và nguồn của từng file. |
+| Kiểm tra file | Xem số dòng hợp lệ, dòng lỗi và lý do lỗi của mỗi file. |
+| Bắt đầu | Chỉ cho chạy so khớp khi có file hợp lệ; sau đó mở P05. |
 
-##### P05 – Chi tiết phiên
+##### P05 – Session Details
 
-| Section | Mô tả nội dung và chức năng |
+| Section | Nội dung và thao tác |
 | --- | --- |
-| **Tiêu đề phiên** | Mã phiên, tên, mô tả, người tạo, ngày tạo, trạng thái; nút quay lại P03. |
-| **Tiến độ xử lý** | Thanh tiến độ và các bước **Nhập file → Chuẩn hóa → AI so khớp → Chờ duyệt → Hợp nhất → Xuất CSV**; thông báo lỗi nếu có. |
-| **File đầu vào** | Bảng toàn bộ file của phiên: tên, nhãn nguồn, số dòng hợp lệ/lỗi, thời gian upload; mở chi tiết lỗi. Nếu phiên chưa chạy, có nút **Thêm file** quay lại P04 và **Bắt đầu AI**. |
-| **Kết quả AI** | Các thẻ **Số bản ghi**, **Số nhóm nghi trùng**, **Đã duyệt**, **Đã từ chối**, **Chờ duyệt**; nút **Xem nhóm nghi trùng** → P06. |
-| **Hồ sơ thống nhất** | Số khách hàng sau xử lý, nút **Xem hồ sơ** → P08 với phiên đã chọn. |
-| **CSV dữ liệu sạch** | Tên file, số dòng, thời điểm xuất, trạng thái; nút **Tải CSV sạch** chỉ bật khi phiên `COMPLETED` và file `READY`. |
-| **Tiến độ phiên** | Thời điểm bắt đầu, lần cập nhật trạng thái gần nhất và kết quả xử lý trong phiên. |
+| Thông tin phiên | Tên, người tạo, thời gian và trạng thái. |
+| Tiến độ | Các bước nhập file, so khớp, chờ duyệt, hợp nhất và xuất file. |
+| File và kết quả | Danh sách file đầu vào, số nhóm nghi trùng và hồ sơ sau xử lý. |
+| File sạch | Người quản lý tải file khi phiên đã hoàn tất và file sẵn sàng. |
 
-##### P06 – Kết quả AI của phiên
+##### P06 – Matching Results
 
-| Section | Mô tả nội dung và chức năng |
+| Section | Nội dung và thao tác |
 | --- | --- |
-| **Ngữ cảnh phiên** | Tên/mã phiên cố định ở đầu trang, trạng thái, tổng số nhóm; link trở về P05. |
-| **Bộ lọc** | Lọc **Chờ duyệt / Đã duyệt / Đã từ chối**, tìm kiếm theo tên/số điện thoại/mã hồ sơ, sắp xếp mức độ khớp. |
-| **Danh sách nhóm nghi trùng** | Bảng mã nhóm, số bản ghi trong nhóm, độ tin cậy, dấu hiệu trùng, mâu thuẫn, trạng thái; chọn nhóm → P07. |
-| **Thống kê nhanh** | Số nhóm cần xem lại và tổng số bản ghi liên quan; không hiển thị nhóm từ phiên khác. |
+| Phiên đang xem | Luôn hiển thị tên phiên để tránh nhầm kết quả. |
+| Bộ lọc | Lọc nhóm chờ duyệt, đã duyệt hoặc giữ riêng. |
+| Danh sách nhóm | Xem số hồ sơ, mức độ giống và lý do gợi ý; chọn nhóm để mở P07. |
 
-##### P07 – Xác minh nhóm nghi trùng
+##### P07 – Review Possible Duplicates
 
-| Section | Mô tả nội dung và chức năng |
+| Section | Nội dung và thao tác |
 | --- | --- |
-| **Thông tin nhóm** | Mã nhóm, phiên xử lý, số bản ghi, điểm AI và cảnh báo mâu thuẫn. |
-| **So sánh hồ sơ** | Bảng đặt các hồ sơ cạnh nhau: tên, email, số điện thoại, địa chỉ, nhãn file gốc; đánh dấu giá trị giống/khác. |
-| **Bằng chứng AI** | Các lý do đề xuất trùng và những dấu hiệu phản đối, không chỉ hiển thị một con số xác suất. |
-| **Hồ sơ dự kiến sau gộp** | Mẫu chọn **giá trị và nguồn** cho từng trường tên, email, số điện thoại, địa chỉ; xem trước Golden Record. |
-| **Quyết định** | Nút **Phê duyệt gộp**, **Từ chối**, ô lý do và hộp xác nhận; hiển thị tiến độ hợp nhất sau khi duyệt. |
+| So sánh hồ sơ | Đặt các hồ sơ cạnh nhau và đánh dấu điểm giống, khác. |
+| Lý do gợi ý | Hiển thị dấu hiệu ủng hộ và dấu hiệu còn mâu thuẫn. |
+| Kết quả dự kiến | Xem thông tin sẽ được giữ nếu gộp. |
+| Quyết định | Chọn **Gộp** hoặc **Giữ riêng**, ghi lý do nếu cần rồi xác nhận. |
 
-##### P08 – Hồ sơ khách hàng
+##### P08 – Customer Records
 
-| Section | Mô tả nội dung và chức năng |
+| Section | Nội dung và thao tác |
 | --- | --- |
-| **Chọn phiên & tìm kiếm** | **Bắt buộc chọn phiên**, tìm theo mã master, tên, email hoặc điện thoại; không trộn hồ sơ giữa các phiên. |
-| **Danh sách hồ sơ** | Bảng mã master, tên, liên hệ, số bản ghi nguồn, trạng thái; phân trang phía server. |
-| **Chi tiết hồ sơ** | Thông tin thống nhất, các bản ghi gốc liên kết và nguồn của từng trường. |
-| **Tách hồ sơ** | Nút **Tách hồ sơ** (chỉ Steward), chọn bản ghi gộp nhầm, nhập lý do, xác nhận và thông báo CSV cần tạo lại. |
+| Chọn phiên và tìm kiếm | Chọn đúng phiên, tìm khách hàng theo thông tin liên hệ. |
+| Danh sách hồ sơ | Xem hồ sơ đã xử lý trong phiên. |
+| Chi tiết | Xem thông tin thống nhất cùng các hồ sơ gốc. |
+| Sửa gộp nhầm | Người quản lý dữ liệu tách hồ sơ và chờ tạo lại file sạch. |
 
-##### P09 – Thống kê
+##### P09 – Statistics
 
-| Section | Mô tả nội dung và chức năng |
+| Section | Nội dung và thao tác |
 | --- | --- |
-| **Bộ lọc phiên** | Chọn **Tất cả phiên** hoặc một phiên; hiển thị phạm vi số liệu và khoảng thời gian. |
-| **Thống kê xử lý** | Biểu đồ số bản ghi nhập, bản ghi hợp lệ/lỗi, nhóm nghi trùng, khách hàng sau gộp, CSV đã xuất. |
-| **Hiệu năng** | Bảng thời gian từng bước, số cặp được so khớp, thời gian chạy, tài nguyên RAM/CPU của từng phiên. |
-| **Chất lượng dữ liệu** | Tỷ lệ dòng nhập hợp lệ/lỗi và số hồ sơ trùng đã xử lý theo phiên; không hiển thị so sánh mô hình. |
+| Chọn phạm vi | Xem tất cả phiên được phép hoặc chọn một phiên. |
+| Kết quả xử lý | Số file, dòng hợp lệ/lỗi, nhóm nghi trùng và hồ sơ sau gộp. |
+| Tiến độ | Xem các phiên đã hoàn tất và phiên còn cần xử lý. |
 
-### 2.2. Phân rã kiến trúc thông tin và phân cấp màn hình (Screen Hierarchy)
+### 2.2. Screen Hierarchy
 
-#### 2.2.1. Danh mục màn hình (Screen Inventory)
+#### 2.2.1. Screen Inventory
 
-| Mã | Màn hình / Page | Hình thức hiển thị | Vai trò | US liên quan |
-| --- | --- | --- | --- | --- |
-| P01 | Đăng nhập | Trang biểu mẫu | Steward, Viewer | US14 |
-| P02 | Tổng quan | Trang tổng quan | Steward, Viewer | US04, US11 |
-| P03 | Danh sách phiên | Trang danh sách | Steward, Viewer | US01, US04 |
-| P04 | Tạo phiên / Nhập file | Trang biểu mẫu và tải file | Steward | US01–US03, US12 |
-| P05 | Chi tiết phiên | Trang chi tiết và tiến độ | Steward, Viewer | US04, US11, US15 |
-| P06 | Kết quả AI của phiên | Trang danh sách | Steward | US05, US13 |
-| P07 | Xác minh nhóm nghi trùng | Trang so sánh và phê duyệt | Steward | US05–US08, US13 |
-| P08 | Hồ sơ khách hàng | Trang danh sách và panel chi tiết | Steward, Viewer | US09, US10 |
-| P09 | Thống kê | Trang biểu đồ và báo cáo | Steward, Viewer | US11, US12 |
+| Mã | Màn hình | Người dùng | Nhu cầu liên quan |
+| --- | --- | --- | --- |
+| P01 | Login | Cả hai vai trò | US14 |
+| P02 | Overview | Cả hai vai trò | US04, US11 |
+| P03 | Session list | Cả hai vai trò | US01, US04 |
+| P04 | Create session / Import files | Data Steward | US01–US03, US12 |
+| P05 | Session details | Cả hai vai trò | US04, US11, US15 |
+| P06 | Matching results | Data Steward | US05, US13 |
+| P07 | Review possible duplicates | Data Steward | US05–US08, US13 |
+| P08 | Customer records | Cả hai vai trò; chỉ Steward được sửa | US09, US10 |
+| P09 | Statistics | Cả hai vai trò | US11, US12 |
 
-Viewer chỉ được xem nội dung thuộc phiên mình có quyền truy cập. Các thao tác tạo phiên, tải file, chạy so khớp, duyệt/tách hồ sơ và tải CSV chỉ dành cho Steward.
+#### 2.2.2. Navigation Flow
 
-#### 2.2.2. Luồng điều hướng chính (Navigation Flow)
-
-**Luồng A – Tạo phiên và xuất dữ liệu sạch**
+**Tạo phiên và tải file sạch**
 
 ```text
-P01 Đăng nhập → P02 Tổng quan → P03 Danh sách phiên
-  → P04 Tạo phiên, tải một hoặc nhiều file CSV, xem lỗi từng file
-  → Bắt đầu so khớp → P05 Theo dõi tiến độ phiên
-  → P06 Xem nhóm nghi trùng → P07 Xác minh và duyệt/từ chối
-  → P05 Xem kết quả, tải CSV hiện hành khi phiên COMPLETED và file READY
+P01 Login → P02 Overview → P03 Session list → P04 Create session / Import files
+→ P05 Session details → P06 Matching results → P07 Review possible duplicates
+→ P05 Session details → Tải file sạch
 ```
 
-**Luồng B – Tra cứu và sửa hồ sơ gộp nhầm**
+**Tra cứu và sửa gộp nhầm**
 
 ```text
-P03 Danh sách phiên → P05 Chi tiết phiên → P08 Hồ sơ của phiên
-  → Xem bản ghi gốc và nguồn của từng trường
-  → [Steward: tách hồ sơ gộp nhầm] → CSV cũ ngừng tải
-  → Hệ thống kiểm tra lại và tạo CSV mới → P05 Tải CSV hiện hành
+P03 Session list → P05 Session details → P08 Customer records
+→ Tách hồ sơ gộp nhầm → Tạo lại file sạch → P05 Session details
 ```
 
-**Luồng C – Xem dữ liệu và thống kê**
+**Xem thống kê**
 
 ```text
-P01 Đăng nhập → P02 Tổng quan
-  ├── P03 Danh sách phiên → P05 Chi tiết phiên
-  ├── P08 Chọn phiên → Tra cứu hồ sơ khách hàng
-  └── P09 Chọn tất cả phiên hoặc một phiên → Xem thống kê
+P02 Overview → P09 Statistics → Chọn tất cả phiên hoặc một phiên
 ```
 
-Mỗi luồng tra cứu phải giữ đúng `session_id`. Chuyển từ phiên A sang phiên B thì danh sách nhóm, hồ sơ và CSV phải đổi theo phiên B; dữ liệu cũ không được hiển thị lại do bộ nhớ đệm.
+### 2.3. Current UI Prototype
 
-### 2.3. Thiết kế giao diện (UI/UX)
+Các ảnh dưới đây minh họa giao diện bằng dữ liệu mẫu. Chúng là thiết kế màn hình; hệ thống chạy thực tế chưa được triển khai.
 
-Hình ảnh minh họa giao diện của 9 màn hình P01–P09, theo kiến trúc thông tin ở mục 2.1. Các ảnh được lưu trong [`docs/ui-ux`](./docs/ui-ux/README.md).
+#### Login
 
-#### P01 – Đăng nhập
+![Đăng nhập](./docs/ui-ux/p01-dang-nhap.png)
 
-![P01 – Đăng nhập](./docs/ui-ux/p01-dang-nhap.png)
+#### Overview
 
-#### P02 – Tổng quan
+![Tổng quan](./docs/ui-ux/p02-tong-quan.png)
 
-![P02 – Tổng quan](./docs/ui-ux/p02-tong-quan.png)
+#### Session list
 
-#### P03 – Danh sách phiên
+![Danh sách phiên](./docs/ui-ux/p03-danh-sach-phien.png)
 
-![P03 – Danh sách phiên](./docs/ui-ux/p03-danh-sach-phien.png)
+#### Create session and import files
 
-#### P04 – Tạo phiên / Nhập file
+![Tạo phiên và nhập file](./docs/ui-ux/p04-tao-phien-nhap-file-csv.png)
 
-![P04 – Tạo phiên / Nhập file CSV](./docs/ui-ux/p04-tao-phien-nhap-file-csv.png)
+#### Session details
 
-#### P05 – Chi tiết phiên
+![Chi tiết phiên](./docs/ui-ux/p05-chi-tiet-phien-csv.png)
 
-![P05 – Chi tiết phiên với file CSV](./docs/ui-ux/p05-chi-tiet-phien-csv.png)
+#### Matching results
 
-#### P06 – Kết quả AI của phiên
+![Kết quả so khớp](./docs/ui-ux/p06-ket-qua-ai.png)
 
-![P06 – Kết quả AI của phiên](./docs/ui-ux/p06-ket-qua-ai.png)
+#### Review possible duplicates
 
-#### P07 – Xác minh nhóm nghi trùng
+![Xác minh nhóm nghi trùng](./docs/ui-ux/p07-xac-minh-nhom.png)
 
-![P07 – Xác minh nhóm nghi trùng](./docs/ui-ux/p07-xac-minh-nhom.png)
+#### Customer records
 
-#### P08 – Hồ sơ khách hàng
+![Hồ sơ khách hàng](./docs/ui-ux/p08-ho-so-khach-hang.png)
 
-![P08 – Hồ sơ khách hàng](./docs/ui-ux/p08-ho-so-khach-hang.png)
+#### Statistics
 
-#### P09 – Thống kê
+![Thống kê](./docs/ui-ux/p09-thong-ke.png)
 
-![P09 – Thống kê](./docs/ui-ux/p09-thong-ke.png)
+## 3. C4 Architecture
 
-### 2.4. Trạng thái giao diện và nguyên tắc UI/UX
+C4 cho thấy hệ thống ở ba mức: người sử dụng, các phần chính của ứng dụng và những chức năng bên trong phần xử lý. Đây là kiến trúc dự kiến.
 
-- **Phiên xử lý:** `DRAFT` (chưa chạy), `READY` (file hợp lệ), `QUEUED`, `RUNNING`, `WAITING_REVIEW`, `MERGING`, `EXPORTING`, `COMPLETED`, `FAILED`, `REVALIDATING` (khi tách hồ sơ sau xuất).
-- **Nhiều phiên đồng thời:** Thanh trạng thái và thông báo luôn gắn mã/tên phiên; mở phiên A rồi B không được hiển thị lại kết quả A do cache cũ. Danh sách có lọc, phân trang server-side.
-- **Hành động có điều kiện:** Không chạy phiên không có file hợp lệ; không upload thêm sau khi đã chạy; không duyệt lại nhóm đã kết thúc; không tải CSV hiện hành khi phiên chưa `COMPLETED`.
-- **Độ rõ ràng:** Mỗi nút có nhãn hành động, dữ liệu rỗng/lỗi/đang tải được hiển thị riêng. Đặc biệt khi phê duyệt phải nêu số bản ghi chịu ảnh hưởng, lý do gộp và nguy cơ nhầm.
-- **Quyền:** Viewer chỉ đọc các nội dung được cấp; backend kiểm tra quyền chứ không chỉ ẩn nút giao diện. Các trang đọc dữ liệu lớn dùng tìm kiếm, bộ lọc và phân trang, không gửi hàng triệu dòng xuống trình duyệt.
-
-## 3. Kiến trúc hệ thống (C4)
-
-### C1 – Bối cảnh hệ thống
+### C1 — System Context
 
 ```mermaid
 flowchart LR
-    S[Data Steward] -->|Tạo phiên, tải file, xem và duyệt kết quả, tải CSV| U[Unira]
-    V[Viewer] -->|Xem danh sách phiên, tra cứu hồ sơ và thống kê| U
+    steward([Data Steward]) -->|Tạo phiên, nhập file, duyệt, tải kết quả| unira[Unira]
+    viewer([Viewer]) -->|Tra cứu và xem thống kê| unira
 ```
 
-Trong phạm vi PoC, Steward có thể tạo nhiều phiên và tải một hoặc nhiều file vào mỗi phiên. File có thể được xuất từ CRM, ERP hoặc một phòng ban, nhưng Unira chỉ nhận file do Steward tải lên; hệ thống không kết nối hay ghi ngược vào các nguồn đó. Nhãn nguồn giúp truy ra file được lấy từ đâu.
+Người quản lý dữ liệu đưa file CSV vào Unira. Người xem chỉ tra cứu kết quả được cấp quyền. Unira không tự lấy hay ghi dữ liệu vào hệ thống bên ngoài.
 
-### C2 – Các thành phần triển khai
-
-```mermaid
-flowchart TB
-    U[Steward / Viewer] -->|HTTPS| FE[React Web]
-    FE -->|JWT + REST API| API[FastAPI Backend]
-    API --> DB[(PostgreSQL – phiên, file, matching, hồ sơ)]
-    API --> OBJ[(Object Storage – file, Parquet, CSV)]
-    API --> QUEUE[Job Queue]
-    QUEUE --> WORKER[Matching Worker – Python, xử lý theo sessionId]
-    WORKER --> OBJ
-    WORKER --> DUCK[DuckDB + Splink]
-    DUCK --> WORKER
-    WORKER --> DB
-    WORKER --> EXPORT[CSV Export Worker – tạo file sạch]
-    EXPORT --> OBJ
-    EXPORT --> DB
-    WORKER --> ORCH[LangGraph – điều phối trạng thái job/HITL]
-```
-
-- **React:** hiển thị dữ liệu và nhận thao tác của người dùng. Các bảng lớn được tìm kiếm và phân trang từ server.
-- **FastAPI:** xác thực, kiểm tra quyền, quản lý phiên, file, job, đề xuất và hồ sơ theo `session_id`; cung cấp REST API cho giao diện.
-- **Matching Worker:** đọc các file đã chốt của phiên, chuẩn hóa dữ liệu, chạy blocking và Splink, kiểm tra nhóm nghi trùng rồi lưu đề xuất. Worker chạy riêng với API và giới hạn số job cùng lúc.
-- **DuckDB và Parquet:** xử lý dữ liệu theo lô. **CSV Export Worker:** tạo một dòng cho mỗi khách hàng đã xác minh. **PostgreSQL:** lưu trạng thái phiên, quyết định duyệt, liên kết hồ sơ và thông tin về file xuất.
-- **LangGraph:** có thể dùng để điều phối các bước xử lý và điểm chờ Steward duyệt. Không gọi LLM cho từng cặp bản ghi. Nếu quy trình đủ đơn giản, hàng đợi và trạng thái job có thể đảm nhiệm việc này.
-- **Embedding/LLM:** chỉ dành cho trường hợp khó cần xem thêm bằng chứng; phải giới hạn số lần dùng và đo chi phí. LLM không tự quyết định gộp hồ sơ.
-
-### C3 – Các thành phần backend
+### C2 — Container
 
 ```mermaid
 flowchart LR
-    H[API Routers + Auth / RBAC] --> S[SessionService]
-    H --> I[ImportService]
-    H --> J[MatchJobService]
-    H --> R[ReviewService]
-    H --> M[MasterRecordService]
-    H --> Q[ReportingService]
-    H --> E[CleanExportService]
-    S --> D[(Repositories)]
-    I --> D
-    J --> W[Matching Worker]
-    W --> C[Candidate Generation + Splink]
-    C --> G[Cluster Validation + Evidence]
-    G --> D
-    R --> D
-    R --> M
-    M --> P[MergePolicy + Transaction]
-    P --> D
-    Q --> D
-    E --> X[Export Worker + Object Storage]
-    X --> D
+    people([Data Steward / Viewer]) --> web[Web interface]
+    web --> api[Application API]
+    api --> db[(Database)]
+    api --> files[(File storage)]
+    api --> worker[Matching worker]
+    worker --> db
+    worker --> files
 ```
 
-So khớp chỉ tạo đề xuất. Khi Steward duyệt, `MergeService` kiểm tra trạng thái, khóa các hồ sơ và liên kết liên quan rồi cập nhật trong một giao dịch. Nếu có lỗi, giao dịch được hủy; chạy lại không tạo bản ghi trùng.
+Giao diện nhận thao tác của người dùng. Phần xử lý quản lý quyền, phiên và quyết định duyệt. Công việc so khớp chạy riêng để các phiên lớn không làm chậm giao diện. Cơ sở dữ liệu giữ trạng thái và kết quả; nơi lưu file giữ dữ liệu nhập và file sạch.
 
-Xem [quy trình xử lý chín bước](./docs/architecture/processing-workflow.md), từ tạo phiên đến xuất lại CSV sau khi tách hồ sơ.
-
-Chi tiết cách thực hiện phần so khớp AI — từ chuẩn hóa, blocking, chấm điểm Splink đến xác minh nhóm và kiểm thử — nằm trong [thiết kế luồng so khớp AI](./docs/architecture/ai-matching-workflow.md).
-
-## 4. Cơ sở dữ liệu và hợp đồng API
-
-Sơ đồ dữ liệu và đặc tả API dưới đây là thiết kế dự kiến; repository hiện chưa có migration hay backend chạy thực tế.
-
-### 4.1. Sơ đồ dữ liệu
-
-[DBML](./docs/schema.dbml) ghi các bảng, cột và quan hệ. Dữ liệu lớn có thể được lưu thêm ở Parquet hoặc object storage như trong sơ đồ C2.
-
-| Nhóm | Bảng chính | Mục đích |
-| --- | --- | --- |
-| Tài khoản | `users` | Vai trò Steward/Viewer |
-| **Quản lý phiên** | **`processing_sessions`** | Phiên riêng, trạng thái, người tạo, cấu hình và tiến độ |
-| File đã nhập | `import_batches`, `source_records` | **Một phiên – nhiều file**; từng file và từng dòng dữ liệu |
-| Matching | `match_jobs`, `match_candidates`, `match_groups`, `group_members` | Job xử lý **thuộc phiên**, cặp so khớp và nhóm nghi trùng |
-| HITL | `review_decisions` | Quyết định, bằng chứng, người phê duyệt |
-| Golden Record | `master_records`, `master_links` | Hồ sơ chuẩn **theo phiên**, liên kết bản ghi gốc và hỗ trợ tách gộp sai |
-| **Xuất dữ liệu** | **`clean_exports`** | **Một file CSV sạch hiện hành cho mỗi phiên** |
-
-`processing_sessions.id` xác định phạm vi của một phiên. Bảng file nhập, job so khớp, hồ sơ thống nhất và CSV đều tham chiếu đến phiên qua `session_id`. Các file trong cùng phiên được so khớp với nhau; dữ liệu từ hai phiên khác nhau không bị trộn. `source_records` giữ nguyên dòng gốc.
-
-Ràng buộc `UNIQUE(session_id)` trong `clean_exports` bảo đảm mỗi phiên chỉ có một CSV hiện hành. Sau khi tách hồ sơ, file cũ ngừng được tải cho đến khi tạo xong file mới. Mỗi bản ghi nguồn có tối đa một liên kết `master_links` ở trạng thái `ACTIVE`. Khi gộp hồ sơ, backend còn phải kiểm tra bản ghi nguồn và master thuộc cùng phiên; chỉ kiểm tra khóa ngoại là chưa đủ.
-
-ERD tổng hợp dưới đây có đủ 12 bảng và 19 quan hệ khóa ngoại. Sơ đồ chỉ hiển thị các cột chính; danh sách đầy đủ nằm trong [DBML](./docs/schema.dbml).
-
-[![ERD tổng hợp Unira – 12 bảng và 19 quan hệ khóa ngoại](./docs/erd/erd-tong-the.png)](./docs/erd/erd-tong-the.svg)
-
-
-### 4.2. Đặc tả API OpenAPI 3.0
-
-[File OpenAPI 3.0](./docs/api/openapi.yaml) mô tả các endpoint, dữ liệu gửi và nhận, quyền truy cập và mã lỗi. Các endpoint dùng tiền tố `/api/v1`.
-
-| Nhóm | API chính | Màn hình |
-| --- | --- | --- |
-| Đăng nhập | `POST /auth/login`, `GET /me` | P01 |
-| **Phiên xử lý** | **`GET /sessions`, `POST /sessions`, `GET /sessions/{sessionId}`** | P02–P05 |
-| **File trong phiên** | **`POST /sessions/{sessionId}/imports`, `GET /sessions/{sessionId}/imports`, `GET /sessions/{sessionId}/imports/{batchId}`** | P04–P05 |
-| **Chạy AI cho phiên** | **`POST /sessions/{sessionId}/match-jobs`, `GET /sessions/{sessionId}/match-jobs`**, `GET /match-jobs/{jobId}` | P05 |
-| Đề xuất AI | `GET /match-groups?sessionId=...`, `GET /match-groups/{groupId}` | P06–P07 |
-| Phê duyệt | `POST /match-groups/{groupId}/decisions` | P07 |
-| Golden Record | `GET /master-records?sessionId=...`, `GET /master-records/{masterId}`, `POST /master-records/{masterId}/undo` | P08 |
-| **CSV theo phiên** | **`GET /sessions/{sessionId}/exports`, `GET /sessions/{sessionId}/exports/{exportId}/download`** | P05 |
-| Thống kê | `GET /dashboard?sessionId=...` | P02/P09 |
-
-`POST /sessions` tạo phiên ở trạng thái `DRAFT`. Steward có thể gọi `POST /sessions/{sessionId}/imports` nhiều lần để thêm file. Khi gọi `POST /sessions/{sessionId}/match-jobs`, hệ thống chốt danh sách file đầu vào và trả `202 Accepted` kèm `jobId`. Các API phải kiểm tra quyền và bảo đảm file, job, hồ sơ, CSV thuộc phiên được yêu cầu. Trả `409` nếu trạng thái phiên hoặc nhóm đã thay đổi và không thể thực hiện thao tác.
-
-CSV đầu ra dùng UTF-8 với các cột `master_id,full_name,phone,email,address,origin_labels,source_record_count`. `origin_labels` là nhãn nguồn do Steward nhập. Mỗi khách hàng hợp lệ trong phiên xuất đúng một dòng, kể cả khách hàng không trùng. Chỉ Steward được tải CSV hiện hành ở trạng thái `READY` qua đường dẫn có thời hạn. Nếu tách hồ sơ, hệ thống tạo lại CSV trước khi cho tải tiếp.
-
-## 5. Cấu trúc thư mục frontend và backend
-
-### 5.1. Cấu trúc hiện tại
-
-```text
-Unira/
-├── README.md
-└── docs/
-    ├── mindmap.png
-    ├── schema.dbml
-    ├── requirements/README.md
-    ├── architecture/processing-workflow.md, ai-matching-workflow.md
-    ├── uml/usecase-overview.puml, .svg, .png
-    ├── erd/README.md, build_erd.py, erd-tong-the.*
-    └── api/openapi.yaml
-```
-
-Kho mã hiện mới có tài liệu và sơ đồ. Phần frontend và backend bên dưới là cấu trúc dự kiến khi bắt đầu triển khai.
-
-### 5.2. Cấu trúc frontend dự kiến
-
-```text
-frontend/
-└── src/
-    ├── app/           # Routing, auth, layout
-    ├── pages/         # P01–P09, SessionsList, SessionDetail
-    ├── features/      # sessions, imports, matching, review, master, export
-    ├── components/    # Table, EvidenceCompare, ConfirmDialog
-    └── api/           # HTTP client và DTO
-```
-
-Luồng gọi từ giao diện: `Page → Feature → API client → REST API`.
-
-### 5.3. Cấu trúc backend dự kiến
-
-```text
-backend/
-├── app/
-│   ├── api/           # Router và validation
-│   ├── auth/          # JWT và RBAC
-│   ├── services/      # Session, Import, MatchJob, Review, MasterRecord, CleanExport
-│   ├── repositories/  # PostgreSQL
-│   ├── matching/      # Blocking, Splink, nhóm và bằng chứng
-│   ├── workflows/     # State machine / LangGraph theo sessionId
-│   ├── workers/       # Batch, export CSV và retry
-│   └── models/        # DB và request/response schema
-├── migrations/
-├── tests/             # Unit, API, ML eval, performance
-└── scripts/           # Sinh dữ liệu và benchmark
-
-infra/                 # Docker Compose và storage
-```
-
-Luồng xử lý ở backend: `API router → service/workflow → repository → PostgreSQL hoặc object storage`.
-
-## 6. Thiết kế lớp và luồng xử lý
-
-Các sơ đồ sau cho thấy các thành phần C3 phối hợp thế nào và dữ liệu đi qua từng bước ra sao. Đây vẫn là thiết kế, chưa phải mã đã triển khai.
-
-### 6.1. C4 Level 4 – Cách các thành phần mã phối hợp
+### C3 — Component
 
 ```mermaid
 flowchart LR
-    API[API Routers và RBAC] --> SESSION[SessionService]
-    API --> IMPORT[ImportService]
-    API --> MATCH[MatchJobService]
-    API --> REVIEW[ReviewService]
-    SESSION --> REPO[(Repositories)]
-    IMPORT --> REPO
-    MATCH --> WORKER[Matching Worker]
-    WORKER --> VALIDATOR[GroupValidator]
-    VALIDATOR --> REPO
-    REVIEW -->|khi phê duyệt| MERGE[GoldenRecordService]
-    MERGE --> REPO
-    MERGE -->|sau khi đủ điều kiện| EXPORT[CleanExportService]
-    EXPORT --> REPO
-    EXPORT --> STORAGE[(Object Storage)]
+    web[Web interface] --> api[Request handling]
+    api --> access[Access control]
+    api --> sessions[Session and file management]
+    api --> reviews[Review and record management]
+    api --> reports[Statistics and export]
+    sessions --> matching[Duplicate matching]
+    matching --> reviews
+    sessions --> data[(Data and files)]
+    reviews --> data
+    reports --> data
 ```
 
-| Thành phần | Trách nhiệm |
+Các phần này phối hợp theo một quy trình: nhận file, kiểm tra dữ liệu, đề xuất nhóm nghi trùng, chờ người quản lý quyết định, rồi tạo hồ sơ và file kết quả. Hồ sơ gốc được giữ để có thể sửa sai sau này.
+
+## 4. Database Diagrams and OpenAPI 3.0 Contract
+
+Phần này mô tả dữ liệu cần lưu và các thao tác mà giao diện sẽ gọi. Sơ đồ và hợp đồng API là thiết kế dự kiến; ứng dụng chạy thực tế chưa được xây dựng.
+
+### 4.1 Database diagrams
+
+![Unira database diagram](./docs/erd/erd-tong-the.png)
+
+| Nhóm dữ liệu | Mục đích |
 | --- | --- |
-| `SessionService` | Tạo và tra cứu phiên, quản lý trạng thái và danh sách file đã chốt. |
-| `ImportService` | Nhận file, kiểm tra cấu trúc, tạo batch và chuẩn hóa dữ liệu. |
-| `MatchJobService` | Tạo job từ các file trong phiên, giao việc cho worker và theo dõi tiến độ. |
-| `CandidateGenerator` | Dùng blocking để chọn những cặp bản ghi cần so sánh. |
-| `ProbabilisticMatcher` | Dùng Splink chấm điểm và lưu bằng chứng so khớp. |
-| `GroupValidator` | Gom các cặp thành nhóm và tìm dấu hiệu mâu thuẫn. |
-| `ReviewService` | Hiển thị bằng chứng, lưu quyết định của Steward và kiểm tra trạng thái nhóm. |
-| `GoldenRecordService` | Tạo hoặc cập nhật hồ sơ thống nhất và liên kết tới bản ghi gốc sau khi được duyệt. |
-| `SplitRecordService` | Gỡ các liên kết gộp sai, kiểm tra lại hồ sơ và tạo lại CSV. |
-| `CleanExportService` | Khi phiên đủ điều kiện, xuất CSV, kiểm tra số dòng và cung cấp đường dẫn tải. |
+| Tài khoản | Lưu người dùng và quyền. |
+| Phiên xử lý | Theo dõi tên, người tạo và tiến độ từng phiên. |
+| File và hồ sơ gốc | Giữ file đã tải lên, dữ liệu gốc và lỗi nhập. |
+| Kết quả so khớp | Lưu các nhóm nghi trùng và lý do gợi ý. |
+| Quyết định duyệt | Ghi ai đã duyệt hoặc từ chối, vào lúc nào. |
+| Hồ sơ thống nhất | Lưu kết quả gộp và liên hệ với hồ sơ gốc. |
+| File sạch | Lưu bản kết quả hiện hành của từng phiên. |
 
-### 6.2. Sơ đồ lớp cốt lõi
+Một phiên có thể có nhiều file. Mỗi file, nhóm nghi trùng, hồ sơ thống nhất và file sạch chỉ thuộc đúng một phiên. Dữ liệu gốc không bị xóa khi hợp nhất.
 
-```mermaid
-classDiagram
-    class ProcessingSession {
-        +UUID id
-        +string name
-        +string status
-        +UUID createdBy
-        +datetime createdAt
-    }
-    class ImportBatch {
-        +UUID id
-        +UUID sessionId
-        +string filename
-        +int rowCount
-        +int errorCount
-    }
-    class SourceRecord {
-        +UUID id
-        +UUID importBatchId
-        +JSON normalizedData
-    }
-    class MatchJob {
-        +UUID id
-        +UUID sessionId
-        +string status
-    }
-    class MatchGroup {
-        +UUID id
-        +UUID jobId
-        +string status
-        +double confidence
-    }
-    class ReviewDecision {
-        +UUID id
-        +UUID groupId
-        +string action
-    }
-    class MasterRecord {
-        +UUID id
-        +UUID sessionId
-        +JSON canonicalData
-    }
-    class MasterLink {
-        +UUID masterId
-        +UUID sourceRecordId
-        +string status
-    }
-    class CleanExport {
-        +UUID id
-        +UUID sessionId
-        +string status
-        +string checksum
-    }
-    ProcessingSession "1" --> "1..*" ImportBatch
-    ImportBatch "1" --> "0..*" SourceRecord
-    ProcessingSession "1" --> "0..*" MatchJob
-    MatchJob "1" --> "0..*" MatchGroup
-    MatchGroup "1" --> "0..*" ReviewDecision
-    ProcessingSession "1" --> "0..*" MasterRecord
-    MasterRecord "1" --> "1..*" MasterLink
-    MasterLink "0..*" --> "1" SourceRecord
-    ProcessingSession "1" --> "0..1" CleanExport
-```
+### 4.2 OpenAPI 3.0 API documentation
 
-`SourceRecord` và `MasterRecord` liên kết với nhau phải thuộc cùng `session_id`. Hệ thống có thể giữ lịch sử `ReviewDecision`, nhưng tại một thời điểm, mỗi nhóm chỉ có một quyết định có hiệu lực.
+Hợp đồng API mô tả các thao tác giữa giao diện và phần xử lý, bao gồm dữ liệu cần gửi, kết quả trả về, quyền truy cập và trường hợp lỗi.
 
-### 6.3. Sơ đồ tuần tự
+| Nhóm thao tác | Việc được hỗ trợ |
+| --- | --- |
+| Đăng nhập | Xác thực người dùng và xem quyền của mình. |
+| Phiên xử lý | Tạo, tìm và xem tiến độ phiên. |
+| File đầu vào | Tải file lên và xem lỗi theo từng file. |
+| So khớp | Bắt đầu xử lý và xem nhóm nghi trùng. |
+| Duyệt kết quả | Gộp hoặc giữ riêng các hồ sơ. |
+| Hồ sơ khách hàng | Tra cứu và tách trường hợp gộp nhầm. |
+| File sạch và thống kê | Tải kết quả của đúng phiên và xem số liệu tổng hợp. |
 
-Các sơ đồ tuần tự đi từ lúc tải file đến so khớp, duyệt hoặc tách hồ sơ và xuất CSV.
-
-#### Tạo phiên, tải file và chạy so khớp
-
-```mermaid
-sequenceDiagram
-    actor S as Steward
-    participant UI as React
-    participant API as FastAPI
-    participant DB as PostgreSQL
-    participant W as Matching Worker
-    participant ML as Splink
-    S->>UI: Nhập tên và mô tả phiên
-    UI->>API: POST /sessions
-    API->>DB: INSERT processing_sessions (DRAFT)
-    API-->>UI: 201 + sessionId
-    loop Cho từng file của phiên
-        S->>UI: Chọn file CSV và nhãn nguồn
-        UI->>API: POST /sessions/{sessionId}/imports
-        API->>DB: Lưu import_batch thuộc sessionId
-        API-->>UI: 202, trạng thái kiểm tra file
-    end
-    S->>UI: Bắt đầu so khớp
-    UI->>API: POST /sessions/{sessionId}/match-jobs
-    API->>DB: Chốt danh sách file, tạo job QUEUED
-    API-->>UI: 202 + jobId
-    API->>W: Phân công worker với sessionId
-    W->>DB: Đọc source_records của phiên
-    W->>ML: Tạo cặp ứng viên, chấm điểm và gom nhóm
-    ML-->>W: Nhóm, điểm và bằng chứng
-    W->>DB: Lưu nhóm và cập nhật trạng thái job
-    UI->>API: GET /sessions/{sessionId}
-    API-->>UI: Tiến độ, file, nhóm chờ duyệt
-```
-
-#### Duyệt hợp nhất và xuất CSV của phiên
-
-```mermaid
-sequenceDiagram
-    actor S as Steward
-    participant UI as React
-    participant API as FastAPI
-    participant R as ReviewService
-    participant M as GoldenRecordService
-    participant DB as PostgreSQL
-    participant E as CleanExportService
-    S->>UI: Mở phiên A, chọn nhóm nghi trùng
-    UI->>API: GET /match-groups/{groupId}
-    API->>DB: Kiểm tra nhóm thuộc phiên A
-    API-->>UI: Bằng chứng và dữ liệu nguồn
-    S->>UI: Phê duyệt hoặc từ chối
-    UI->>API: POST /match-groups/{groupId}/decisions
-    API->>R: Khóa nhóm của phiên, kiểm tra PENDING
-    alt Từ chối
-        R->>DB: Lưu review_decisions(REJECTED)
-    else Duyệt
-        R->>DB: Lưu APPROVED + công việc hợp nhất
-        R->>M: Merge chỉ trên source của phiên A
-        M->>DB: Cập nhật master, links và review_decisions trong giao dịch
-        M->>DB: Kiểm tra ràng buộc và COMMIT
-    end
-    opt Tất cả nhóm của phiên A đã xử lý
-        M->>E: Kiểm chứng, tạo master riêng cho hồ sơ không trùng
-        E->>DB: Đọc master chỉ của phiên A
-        E->>E: Stream CSV + kiểm tra số dòng và checksum
-        E->>DB: Lưu clean_exports READY, phiên A COMPLETED
-    end
-    S->>UI: Tải CSV sạch của phiên A tại P05
-    UI->>API: GET /sessions/{sessionId}/exports/{exportId}/download
-    API-->>UI: URL tải đúng phiên A (sau kiểm tra quyền)
-```
-
-#### Tách bản ghi gộp nhầm
-
-```mermaid
-sequenceDiagram
-    actor S as Steward
-    participant UI as React
-    participant API as FastAPI
-    participant H as SplitRecordService
-    participant DB as PostgreSQL
-    S->>UI: Chọn bản ghi bị gộp nhầm, bấm tách
-    UI->>API: POST /master-records/{id}/undo
-    API->>H: Kiểm tra quyền và trạng thái liên kết
-    H->>DB: Khóa master và liên kết liên quan
-    alt Có thay đổi phụ thuộc/xung đột
-        H-->>UI: 409, yêu cầu xem xét
-    else Có thể tách hồ sơ
-        H->>DB: Gỡ link sai và tính lại Golden Record từ dữ liệu gốc
-        H->>DB: Đặt CSV về GENERATING, phiên sang REVALIDATING
-        H->>DB: Lưu thay đổi link và COMMIT
-        H-->>UI: 200, báo trạng thái chờ CSV mới
-    end
-```
-
-#### Tạo và tải CSV riêng theo phiên
-
-```mermaid
-sequenceDiagram
-    participant W as Workflow Worker
-    participant DB as PostgreSQL
-    participant E as CleanExportService
-    participant O as Object Storage
-    actor S as Steward
-    participant API as FastAPI
-    W->>DB: Kiểm tra nhóm/merge trong sessionId
-    alt Còn nghi vấn hoặc merge lỗi
-        DB-->>W: Chưa đủ điều kiện
-        W->>DB: WAITING_REVIEW / FAILED, không công bố CSV
-    else Đã xử lý đủ
-        W->>DB: Chốt snapshot master của sessionId
-        W->>DB: Phiên EXPORTING
-        W->>E: Tạo CSV hiện hành, chạy lại không sinh file trùng
-        E->>O: Ghi CSV theo luồng, đúng sessionId
-        E->>E: Kiểm tra số dòng, masterId và checksum
-        E->>DB: Lưu clean_export READY, phiên COMPLETED
-        S->>API: GET /sessions/{sessionId}/exports
-        API-->>S: Thông tin CSV của phiên
-        S->>API: GET /sessions/{sessionId}/exports/{exportId}/download
-        API-->>S: 302 kèm đường dẫn tải có hạn sau khi kiểm tra quyền
-    end
-```
-
+Mỗi thao tác phải kiểm tra quyền và phiên đang được yêu cầu. Khi dữ liệu hoặc trạng thái đã thay đổi, hệ thống trả lỗi rõ ràng để người dùng tải lại trước khi tiếp tục.
