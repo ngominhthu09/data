@@ -664,3 +664,235 @@ Hợp đồng API mô tả các thao tác giữa giao diện và phần xử lý
 | File sạch và thống kê | Tải kết quả của đúng phiên và xem số liệu tổng hợp. |
 
 Đăng nhập là thao tác công khai; các thao tác còn lại yêu cầu xác thực và kiểm tra quyền phù hợp. Những thao tác liên quan đến phiên phải kiểm tra đúng phiên được yêu cầu. Đây là hợp đồng dự kiến, chưa phải API đang chạy.
+
+## 5. Cấu trúc thư mục frontend và backend
+
+### 5.1 Hiện trạng kho mã
+
+Kho hiện chỉ có **tài liệu thiết kế**: `docs/api/` chứa hợp đồng OpenAPI dự kiến, `docs/architecture/c4/` chứa C1–C3, `docs/requirements/` và `docs/ui-ux/` chứa yêu cầu và màn hình, `docs/schema*.dbml` chứa mô hình dữ liệu. Chưa có frontend, API, worker hoặc migration chạy được.
+
+### 5.2 Cấu trúc mã nguồn đề xuất
+
+Đây là **cấu trúc mục tiêu**, không phải các thư mục đã tồn tại. Có thể chọn tên theo công nghệ khi triển khai nhưng vẫn giữ ranh giới trách nhiệm.
+
+```text
+Unira/
+├── frontend/
+│   ├── app/                    # Điều hướng, trạng thái xác thực, cấu hình API
+│   ├── features/
+│   │   ├── sessions/           # Danh sách, tạo phiên, trạng thái
+│   │   ├── imports/            # Tải CSV và hiển thị lỗi dữ liệu
+│   │   ├── matching/           # Job, nhóm nghi trùng, bằng chứng
+│   │   ├── review/             # Duyệt hoặc từ chối nhóm
+│   │   ├── records/            # Hồ sơ thống nhất, nguồn gốc, tách gộp
+│   │   └── dashboard/          # Số liệu tổng quan và theo phiên
+│   ├── shared/                 # UI, định dạng và kiểm tra dùng chung
+│   └── services/               # API client theo docs/api/openapi.yaml
+├── backend/
+│   ├── api/                    # HTTP, ánh xạ request/response, xác thực
+│   ├── application/            # Use case, phân quyền, điều phối job
+│   ├── domain/                 # Quy tắc phiên, nhóm, quyết định, hồ sơ, CSV
+│   ├── ports/                  # Interface kho dữ liệu, lưu file, hàng đợi
+│   └── infrastructure/         # Adapter cơ sở dữ liệu, file, hàng đợi
+├── worker/
+│   ├── import_validation/      # Đọc CSV, kiểm tra dòng, chuẩn hóa
+│   ├── matching/               # Blocking, tính điểm, bằng chứng, nhóm
+│   ├── merging/                # Gộp đã duyệt và nguồn gốc dữ liệu
+│   └── exporting/              # Tạo CSV UTF-8 và checksum
+├── database/migrations/        # Lược đồ và ràng buộc toàn vẹn
+├── tests/
+│   ├── contract/              # API và giới hạn theo vai trò
+│   ├── application/           # Bất biến của phiên, duyệt, xuất CSV
+│   └── integration/           # Cơ sở dữ liệu, lưu file, luồng worker
+├── docs/                       # Tài liệu thiết kế và API hiện có
+├── README.md
+└── VREADME.md
+```
+
+| Ranh giới | Quy tắc phụ thuộc |
+| --- | --- |
+| Frontend | Các màn hình gọi API client chung; backend vẫn phải kiểm tra quyền. |
+| API | Chuyển HTTP thành use case, kiểm tra xác thực và quyền với từng phiên. |
+| Application và domain | Phụ thuộc vào interface và quy tắc nghiệp vụ, không phụ thuộc framework web hay cơ sở dữ liệu. |
+| Infrastructure và worker | Triển khai interface và job nền; dữ liệu luôn được truy xuất theo đúng phiên. |
+
+Các mô-đun `worker/` tương ứng worker độc lập trong [C2](./docs/architecture/c4/02-container.en.md). Các mô-đun `backend/` làm rõ thành phần API trong [C3](./docs/architecture/c4/03-component.en.md). Truy vấn dữ liệu theo phiên phải nhận `sessionId`; chỉ có ID của nhóm hay hồ sơ không đủ để cấp quyền.
+
+## 6. Thiết kế chi tiết lớp và trình tự xử lý
+
+Các sơ đồ dưới đây là thiết kế dự kiến từ [C3](./docs/architecture/c4/03-component.en.md), [mô hình dữ liệu](./docs/schema.dbml) và [hợp đồng OpenAPI](./docs/api/openapi.yaml). Tên lớp chỉ mô tả trách nhiệm; chưa có lớp nào được triển khai.
+
+### 6.1 C4 cấp 4 — các lớp phối hợp
+
+```mermaid
+flowchart LR
+    client["API client của frontend"] --> route["Route Phiên / Nhập / Duyệt / Xuất CSV"]
+    route --> access["SessionAccessPolicy"]
+    route --> usecases["SessionService / ImportService / ReviewService / ExportService"]
+    usecases --> ports["Interface kho dữ liệu và lưu file"]
+    usecases --> dispatch["Interface JobDispatcher"]
+    ports --> db[("Cơ sở dữ liệu")]
+    ports --> files[("Kho file riêng tư")]
+    dispatch --> worker["Worker nhập / so khớp / gộp / xuất CSV"]
+    worker --> db
+    worker --> files
+```
+
+Route kiểm tra danh tính và quyền, rồi gọi service. Service kiểm tra chuyển trạng thái; worker làm tác vụ dài. Nhóm, bản ghi nguồn, hồ sơ thống nhất và file xuất đều phải được xác định thuộc phiên được yêu cầu.
+
+### 6.2 Quan hệ các lớp cốt lõi
+
+```mermaid
+classDiagram
+    class SessionService {
+      +createSession(actor, input)
+      +startMatching(actor, sessionId)
+    }
+    class ImportService {
+      +uploadCsv(actor, sessionId, file)
+    }
+    class ReviewService {
+      +decide(actor, groupId, request)
+      +undoMerge(actor, masterId, request)
+    }
+    class ExportService {
+      +currentExport(actor, sessionId)
+      +download(actor, sessionId, exportId)
+    }
+    class SessionAccessPolicy {
+      +requireRole(actor, action)
+      +requireSessionAccess(actor, sessionId)
+    }
+    class SessionRepository {
+      <<interface>>
+      +find(sessionId)
+      +save(session)
+    }
+    class ReviewRepository {
+      <<interface>>
+      +lockPendingGroup(groupId)
+      +saveDecision(decision)
+    }
+    class RecordRepository {
+      <<interface>>
+      +findMaster(masterId)
+      +updateLinks(sessionId, recordIds)
+    }
+    class ExportRepository {
+      <<interface>>
+      +findCurrent(sessionId)
+      +markUnavailable(sessionId)
+    }
+    class JobDispatcher {
+      <<interface>>
+      +enqueue(jobType, sessionId)
+    }
+    SessionService --> SessionAccessPolicy
+    SessionService --> SessionRepository
+    SessionService --> JobDispatcher
+    ImportService --> SessionAccessPolicy
+    ImportService --> SessionRepository
+    ImportService --> JobDispatcher
+    ReviewService --> SessionAccessPolicy
+    ReviewService --> ReviewRepository
+    ReviewService --> RecordRepository
+    ReviewService --> ExportRepository
+    ReviewService --> JobDispatcher
+    ExportService --> SessionAccessPolicy
+    ExportService --> ExportRepository
+```
+
+Các interface trên là cổng dự kiến. Khi triển khai phải bảo đảm ràng buộc trong DBML: mỗi bản ghi nguồn có tối đa một liên kết master còn hiệu lực, mỗi phiên có một file xuất hiện hành. Worker giữ dòng dữ liệu gốc và ghi phiên bản mô hình/cấu hình của từng job so khớp.
+
+### 6.3 Trình tự — nhập file và so khớp
+
+```mermaid
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor Steward
+    participant API
+    participant Session as SessionService
+    participant Store as Dữ liệu và kho file
+    participant Queue as Điều phối job
+    participant Worker
+    Steward->>API: POST /sessions/{sessionId}/imports (CSV)
+    API->>Session: Kiểm tra STEWARD, quyền phiên, DRAFT/READY
+    Session->>Store: Lưu file và lần nhập vào đúng phiên
+    Session->>Queue: Xếp job kiểm tra(sessionId, batchId)
+    API-->>Steward: Lần nhập và trạng thái kiểm tra
+    Queue->>Worker: Kiểm tra lần nhập
+    Worker->>Store: Kiểm tra dòng, giữ dữ liệu gốc, chuẩn hóa
+    Steward->>API: POST /sessions/{sessionId}/match-jobs
+    API->>Session: Kiểm tra quyền và file hợp lệ
+    Session->>Store: Chốt ID các file đầu vào, tạo job
+    Session->>Queue: Xếp job so khớp(sessionId)
+    API-->>Steward: 202 đã nhận job
+    Queue->>Worker: Chạy job
+    Worker->>Store: Blocking, tính điểm, lưu bằng chứng và nhóm
+    Worker->>Store: Chờ duyệt hoặc tiếp tục xuất CSV
+```
+
+Snapshot đầu vào ngăn thay đổi file trong khi job đang chạy. Cặp ứng viên và nhóm chỉ được chứa bản ghi của chính phiên đó.
+
+### 6.4 Trình tự — duyệt và gộp
+
+```mermaid
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor Steward
+    participant API
+    participant Review as ReviewService
+    participant DB as Giao dịch dữ liệu
+    participant Queue as Điều phối job
+    participant Worker
+    Steward->>API: POST /match-groups/{groupId}/decisions
+    API->>Review: Kiểm tra STEWARD và quyền với phiên của nhóm
+    Review->>DB: Khóa nhóm, yêu cầu PENDING và cùng phiên
+    alt Nhóm thay đổi hoặc đã có quyết định
+      DB-->>API: Xung đột
+      API-->>Steward: 409
+    else REJECT
+      Review->>DB: Lưu quyết định, đánh dấu REJECTED và không gộp
+      API-->>Steward: 202 đã nhận quyết định
+    else APPROVE
+      Review->>DB: Lưu quyết định và công việc gộp trong một giao dịch
+      API-->>Steward: 202 đã nhận quyết định
+      DB->>Queue: Gửi việc đã commit
+      Queue->>Worker: Gộp các bản ghi đã duyệt
+      Worker->>DB: Tạo/cập nhật master và liên kết cùng phiên
+      Worker->>DB: Ghi kết quả hoặc lỗi
+    end
+```
+
+Chỉ `STEWARD` được duyệt. Quyết định đồng thời gây `409`; duyệt tạo công việc gộp, từ chối không tạo liên kết gộp. Nhóm và lịch sử quyết định được giữ để truy vết.
+
+### 6.5 Trình tự — tách, tạo lại và tải CSV
+
+```mermaid
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor Steward
+    participant API
+    participant Review as ReviewService
+    participant DB as Cơ sở dữ liệu
+    participant Worker
+    participant Files as Kho file riêng tư
+    Steward->>API: POST /master-records/{masterId}/undo
+    API->>Review: Kiểm tra STEWARD, quyền phiên, lý do và ID dòng
+    Review->>DB: Thu hồi liên kết, vô hiệu hóa file hiện tại
+    Review->>DB: Chuyển phiên REVALIDATING và xếp job tạo lại
+    API-->>Steward: 200 kết quả tách
+    Worker->>DB: Tạo lại hồ sơ từ các dòng gốc đã giữ
+    Worker->>DB: Kiểm tra nhóm đã xử lý và mọi hồ sơ hợp lệ
+    alt Vẫn cần duyệt
+      Worker->>DB: Giữ file không tải được, phiên WAITING_REVIEW
+    else Đã xử lý xong
+      Worker->>Files: Ghi CSV UTF-8 và checksum
+      Worker->>DB: Thay file hiện hành bằng READY, phiên COMPLETED
+    end
+    Steward->>API: GET /sessions/{sessionId}/exports/{exportId}/download
+    API->>DB: Kiểm tra STEWARD, đúng phiên, file hiện tại, COMPLETED
+    API-->>Steward: 302 URL tải có thời hạn
+```
+
+Trước khi file thay thế đạt `READY`, không được tải file cũ. Nếu còn nhóm cần xem xét, phiên chờ quyết định trước khi xuất lại. Tải lại file hiện hành không tạo job mới. CSV có một dòng cho mỗi khách hàng hợp lệ trong phiên, kể cả hồ sơ không trùng.

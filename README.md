@@ -665,3 +665,235 @@ The API contract describes interactions between the web interface and the proces
 | Clean exports and statistics | Download the result for the correct session and view summary figures. |
 
 Sign-in is public; all other operations require authentication and appropriate permissions. Session-related operations must check access to the requested session. This is a proposed contract, not a running API.
+
+## 5. Frontend and backend folder structure
+
+### 5.1 Current repository
+
+This repository currently contains **design documents only**: `docs/api/` holds the proposed OpenAPI contract, `docs/architecture/c4/` holds C1–C3, `docs/requirements/` and `docs/ui-ux/` hold requirements and screen designs, and `docs/schema*.dbml` hold the data model. No frontend, API, worker, or database migration is implemented yet.
+
+### 5.2 Proposed source layout
+
+The following is a **target layout**, not a claim that these directories exist. Technology-specific names can be chosen during implementation without changing the ownership boundaries.
+
+```text
+Unira/
+├── frontend/
+│   ├── app/                    # Routing, authentication state, API composition
+│   ├── features/
+│   │   ├── sessions/           # Session list, creation, status
+│   │   ├── imports/            # CSV upload and validation feedback
+│   │   ├── matching/           # Jobs, groups, evidence
+│   │   ├── review/             # Approve or reject a group
+│   │   ├── records/            # Master records, provenance, undo
+│   │   └── dashboard/          # Counts and session statistics
+│   ├── shared/                 # Reusable UI, formatting, and validation
+│   └── services/               # Typed client for docs/api/openapi.en.yaml
+├── backend/
+│   ├── api/                    # HTTP routes, request/response mapping, auth
+│   ├── application/            # Use cases, authorization policies, job coordination
+│   ├── domain/                 # Session, group, decision, master, export rules
+│   ├── ports/                  # Repository, file storage, and job queue interfaces
+│   └── infrastructure/         # Database, object storage, and queue adapters
+├── worker/
+│   ├── import_validation/      # CSV decoding, row checks, normalization
+│   ├── matching/               # Blocking, scoring, evidence, grouping
+│   ├── merging/                # Approved merges and source provenance
+│   └── exporting/              # UTF-8 CSV creation and checksum
+├── database/migrations/        # Schema and integrity constraints
+├── tests/
+│   ├── contract/              # API responses and role restrictions
+│   ├── application/           # Session, review, and export invariants
+│   └── integration/           # Database, storage, and worker workflows
+├── docs/                       # Existing design and API documents
+├── README.md
+└── VREADME.md
+```
+
+| Boundary | Dependency rule |
+| --- | --- |
+| Frontend | Feature views call the shared API client; authorization is also enforced by the backend. |
+| API | Maps HTTP contracts to application use cases and checks authentication and session access. |
+| Application and domain | Depend on ports and domain rules, not on database, queue, or web frameworks. |
+| Infrastructure and worker | Implement ports and background jobs; all reads and writes remain scoped to one session. |
+
+The `worker/` modules correspond to the separate matching worker in [C2](./docs/architecture/c4/02-container.en.md). The `backend/` modules refine the API components in [C3](./docs/architecture/c4/03-component.en.md). Repository methods should accept a session ID when accessing session data; a bare group or master ID is not sufficient authorization.
+
+## 6. Detailed class and sequence design
+
+These are proposed code-level collaborations derived from [C3](./docs/architecture/c4/03-component.en.md), the [data model](./docs/schema.en.dbml), and the [OpenAPI contract](./docs/api/openapi.en.yaml). Names indicate responsibilities, not implemented classes.
+
+### 6.1 C4 Level 4 — code collaboration
+
+```mermaid
+flowchart LR
+    client["Frontend API client"] --> route["Session / Import / Review / Export routes"]
+    route --> access["SessionAccessPolicy"]
+    route --> usecases["SessionService / ImportService / ReviewService / ExportService"]
+    usecases --> ports["Repositories and storage ports"]
+    usecases --> dispatch["JobDispatcher port"]
+    ports --> db[("Database")]
+    ports --> files[("Private file storage")]
+    dispatch --> worker["Import / Match / Merge / Export worker"]
+    worker --> db
+    worker --> files
+```
+
+The route checks identity and access, then delegates the operation. The service enforces state transitions; the worker performs long-running tasks. A group, source record, master, and export must all resolve to the requested session before use.
+
+### 6.2 Core class relationships
+
+```mermaid
+classDiagram
+    class SessionService {
+      +createSession(actor, input)
+      +startMatching(actor, sessionId)
+    }
+    class ImportService {
+      +uploadCsv(actor, sessionId, file)
+    }
+    class ReviewService {
+      +decide(actor, groupId, request)
+      +undoMerge(actor, masterId, request)
+    }
+    class ExportService {
+      +currentExport(actor, sessionId)
+      +download(actor, sessionId, exportId)
+    }
+    class SessionAccessPolicy {
+      +requireRole(actor, action)
+      +requireSessionAccess(actor, sessionId)
+    }
+    class SessionRepository {
+      <<interface>>
+      +find(sessionId)
+      +save(session)
+    }
+    class ReviewRepository {
+      <<interface>>
+      +lockPendingGroup(groupId)
+      +saveDecision(decision)
+    }
+    class RecordRepository {
+      <<interface>>
+      +findMaster(masterId)
+      +updateLinks(sessionId, recordIds)
+    }
+    class ExportRepository {
+      <<interface>>
+      +findCurrent(sessionId)
+      +markUnavailable(sessionId)
+    }
+    class JobDispatcher {
+      <<interface>>
+      +enqueue(jobType, sessionId)
+    }
+    SessionService --> SessionAccessPolicy
+    SessionService --> SessionRepository
+    SessionService --> JobDispatcher
+    ImportService --> SessionAccessPolicy
+    ImportService --> SessionRepository
+    ImportService --> JobDispatcher
+    ReviewService --> SessionAccessPolicy
+    ReviewService --> ReviewRepository
+    ReviewService --> RecordRepository
+    ReviewService --> ExportRepository
+    ReviewService --> JobDispatcher
+    ExportService --> SessionAccessPolicy
+    ExportService --> ExportRepository
+```
+
+The interfaces above are proposed ports. Implementations must enforce the constraints in the DBML, including at most one active master link per source record and one current export per session. The worker retains raw source rows and records the model/configuration used by each matching job.
+
+### 6.3 Sequence — import and matching
+
+```mermaid
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor Steward
+    participant API
+    participant Session as SessionService
+    participant Store as Data and file storage
+    participant Queue as Job dispatcher
+    participant Worker
+    Steward->>API: POST /sessions/{sessionId}/imports (CSV)
+    API->>Session: Check STEWARD, session access, DRAFT/READY
+    Session->>Store: Save file and import batch in same session
+    Session->>Queue: Enqueue validation(sessionId, batchId)
+    API-->>Steward: Import batch and validation status
+    Queue->>Worker: Validate import batch
+    Worker->>Store: Validate rows, retain raw data, normalize valid rows
+    Steward->>API: POST /sessions/{sessionId}/match-jobs
+    API->>Session: Check access and eligible valid inputs
+    Session->>Store: Freeze input file IDs and create job
+    Session->>Queue: Enqueue match job(sessionId)
+    API-->>Steward: 202 job accepted
+    Queue->>Worker: Process job
+    Worker->>Store: Block, score, save evidence and groups
+    Worker->>Store: Set WAITING_REVIEW or continue to export
+```
+
+The frozen input snapshot prevents later file changes from altering a running job. Candidate pairs and groups must contain records from the job's own session.
+
+### 6.4 Sequence — review and approved merge
+
+```mermaid
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor Steward
+    participant API
+    participant Review as ReviewService
+    participant DB as Database transaction
+    participant Queue as Job dispatcher
+    participant Worker
+    Steward->>API: POST /match-groups/{groupId}/decisions
+    API->>Review: Check STEWARD and group's session access
+    Review->>DB: Lock group, require PENDING and same-session members
+    alt Group changed or already decided
+      DB-->>API: Conflict
+      API-->>Steward: 409
+    else REJECT
+      Review->>DB: Save decision, mark REJECTED, no merge links
+      API-->>Steward: 202 decision accepted
+    else APPROVE
+      Review->>DB: Save decision and queued merge work atomically
+      API-->>Steward: 202 decision accepted
+      DB->>Queue: Dispatch committed work
+      Queue->>Worker: Merge approved records
+      Worker->>DB: Create/update master and active links in same session
+      Worker->>DB: Record completion or failure
+    end
+```
+
+Only `STEWARD` may decide. A concurrent decision returns `409`; approval queues a merge, whereas rejection creates no merge link. The group and decision history remain available for audit.
+
+### 6.5 Sequence — undo, regenerate, and download
+
+```mermaid
+%%{init: {"sequence": {"mirrorActors": false}}}%%
+sequenceDiagram
+    actor Steward
+    participant API
+    participant Review as ReviewService
+    participant DB as Database
+    participant Worker
+    participant Files as Private file storage
+    Steward->>API: POST /master-records/{masterId}/undo
+    API->>Review: Check STEWARD, session access, reason and record IDs
+    Review->>DB: Revoke selected links, mark export unavailable
+    Review->>DB: Set session REVALIDATING and queue rebuild
+    API-->>Steward: 200 undo result
+    Worker->>DB: Rebuild records from retained source rows
+    Worker->>DB: Check all groups resolved and master coverage
+    alt Review still required
+      Worker->>DB: Keep export unavailable, set WAITING_REVIEW
+    else All records resolved
+      Worker->>Files: Write UTF-8 CSV and checksum
+      Worker->>DB: Replace current export with READY, set COMPLETED
+    end
+    Steward->>API: GET /sessions/{sessionId}/exports/{exportId}/download
+    API->>DB: Check STEWARD, session, current export and COMPLETED
+    API-->>Steward: 302 time-limited download URL
+```
+
+Until the replacement is `READY`, download must fail; the previous file is never served. If review is still required, the session waits for a decision before export resumes. Downloading an existing export does not start another job. Export output includes one row per valid customer in that session, including standalone records.
